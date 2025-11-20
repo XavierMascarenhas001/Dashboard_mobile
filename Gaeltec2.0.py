@@ -602,6 +602,7 @@ resume_df = pd.read_parquet(resume_url)
 resume_df.columns = resume_df.columns.str.strip().str.lower()  # normalize columns
 
     # -------------------------------
+    # -------------------------------
     # --- Sidebar Filters ---
     # -------------------------------
     st.sidebar.header("Filter Options")
@@ -676,7 +677,7 @@ resume_df.columns = resume_df.columns.str.strip().str.lower()  # normalize colum
     formatted_variation = f"{variation_sum:,.2f}".replace(",", " ").replace(".", ",")
 
     # Money logo
-    money_logo_path = r"Images/Pound.png"
+    money_logo_path = r"C:\Users\Xavier.Mascarenhas\OneDrive - Gaeltec Utilities Ltd\Desktop\Gaeltec\01-Templates\Images\Pound.png"
     money_logo = Image.open(money_logo_path).resize((40, 40))
     buffered = BytesIO()
     money_logo.save(buffered, format="PNG")
@@ -775,7 +776,7 @@ resume_df.columns = resume_df.columns.str.strip().str.lower()  # normalize colum
     col_map, col_desc = st.columns([2, 1])
     with col_map:
         st.header("🗺️ Regional Map View")
-        folder_path = r"Maps"
+        folder_path = r"C:\Users\Xavier.Mascarenhas\OneDrive - Gaeltec Utilities Ltd\Desktop\Gaeltec\06_Programs\Maps"
         file_list = glob.glob(os.path.join(folder_path, "*.json"))
 
         if not file_list:
