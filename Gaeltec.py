@@ -961,44 +961,22 @@ if resume_file is not None:
         st.subheader(f"🔹 {cat_name} — Total: {grand_total:,.2f}")
 
         # Draw the bar chart
-        # Test with a simple matplotlib chart as reference
-        st.write("🔍 **Reference Matplotlib Chart:**")
-        fig_matplotlib, ax = plt.subplots()
-        ax.bar(bar_data['Mapped'], bar_data['Total'])
-        ax.set_title(f"{cat_name} - Matplotlib Reference")
-        plt.xticks(rotation=45)
-        st.pyplot(fig_matplotlib)
-
-        # Draw the bar chart with explicit settings
-        st.write("🔍 **Plotly Chart:**")
-        fig = px.bar(
-            bar_data,
-            x='Mapped', 
-            y='Total',
-            text='Total',
-            title=f"{cat_name} Overview"
-        )
-        
-        # Force explicit layout
-        fig.update_layout(
-            yaxis=dict(
-                range=[0, max(bar_data['Total'].max() * 1.1, 1)],  # Ensure at least 0-1 range
-                showticklabels=True,
-                showgrid=True
-            ),
-            xaxis=dict(
-                showticklabels=True
+        # FIX: Use go.Figure with explicit data types
+        fig = go.Figure(data=[
+            go.Bar(
+                x=bar_data['Mapped'].astype(str).tolist(),  # Force string list
+                y=bar_data['Total'].astype(float).tolist(), # Force float list
+                text=bar_data['Total'].astype(float).tolist(),
+                texttemplate='%{y:,.1f}',
+                textposition='outside'
             )
-        )
-        
-        fig.update_traces(
-            texttemplate='%{y:,.1f}',
-            textposition='outside'
-        )
+        ])
 
-        # Show the figure JSON to see what Plotly is actually creating
-        st.write("🔍 **Plotly Figure JSON:**")
-        st.json(fig.to_json())
+        fig.update_layout(
+            title=f"{cat_name} Overview",
+            xaxis_title="Mapping",
+            yaxis_title=y_axis_label
+        )
 
         click = plotly_events(
             fig,
