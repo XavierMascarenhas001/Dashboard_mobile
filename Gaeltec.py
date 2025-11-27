@@ -962,6 +962,7 @@ if resume_file is not None:
 
         # Draw the bar chart
         # FIX: Use px.bar but with proper data type conversion
+        # Use px.bar with fixed data types and native Streamlit selection
         bar_data_fixed = bar_data.copy()
         bar_data_fixed['Total'] = bar_data_fixed['Total'].astype(float)
         bar_data_fixed['Mapped'] = bar_data_fixed['Mapped'].astype(str)
@@ -980,44 +981,38 @@ if resume_file is not None:
             textposition='outside'
         )
 
-        fig.update_layout(
-            xaxis_title="Mapping",
-            yaxis_title=y_axis_label
-        )
-
-        click = plotly_events(
+        # Use native Streamlit selection (more reliable)
+        st.plotly_chart(
             fig,
-            click_event=True,
-            override_height=500,
-            override_width="100%",
-            key=f"click_{cat_name}"
+            on_select="rerun",
+            key=f"select_{cat_name}",
+            height=500
         )
     
         # Drill-down when selecting
-        if st.session_state.get(f"select_{cat_name}_selection"):
-            selected_points = st.session_state[f"select_{cat_name}_selection"].points
-            if selected_points:
-                clicked_mapping = selected_points[0]['x']
-        
-                st.subheader(f"Details for: **{clicked_mapping}**")
-                selected_rows = sub_df[sub_df['mapped'] == clicked_mapping].copy()
-                selected_rows = selected_rows.loc[:, ~selected_rows.columns.duplicated()]
-        
-                if 'datetouse' in selected_rows.columns:
-                    selected_rows['datetouse_display'] = pd.to_datetime(
-                        selected_rows['datetouse'], errors='coerce'
-                    ).dt.strftime("%d/%m/%Y")
-                    selected_rows.loc[selected_rows['datetouse'].isna(), 'datetouse_display'] = "Unplanned"
-                
-                extra_cols = ['pole','poling team','team_name', 'projectmanager', 'project', 'shire', 'segmentdesc', 'sourcefile']
-                selected_rows = selected_rows.rename(columns={"poling team": "code"})
-                selected_rows = selected_rows.rename(columns={"team_name": "team lider"})
-                extra_cols = [c if c != "poling team" else "code" for c in extra_cols]
-                extra_cols = [c if c != "team_name" else "team lider" for c in extra_cols]
-                display_cols = ['mapped', 'datetouse_display'] + extra_cols
-                display_cols = [c for c in display_cols if c in selected_rows.columns]
-        
-                st.dataframe(selected_rows[display_cols], use_container_width=True)
+        selection_key = f"select_{cat_name}_selection"
+        if selection_key in st.session_state and st.session_state[selection_key].points:
+            clicked_mapping = st.session_state[selection_key].points[0]['x']
+            
+            st.subheader(f"Details for: **{clicked_mapping}**")
+            selected_rows = sub_df[sub_df['mapped'] == clicked_mapping].copy()
+            selected_rows = selected_rows.loc[:, ~selected_rows.columns.duplicated()]
+
+            if 'datetouse' in selected_rows.columns:
+                selected_rows['datetouse_display'] = pd.to_datetime(
+                    selected_rows['datetouse'], errors='coerce'
+                ).dt.strftime("%d/%m/%Y")
+                selected_rows.loc[selected_rows['datetouse'].isna(), 'datetouse_display'] = "Unplanned"
+            
+            extra_cols = ['pole','poling team','team_name', 'projectmanager', 'project', 'shire', 'segmentdesc', 'sourcefile']
+            selected_rows = selected_rows.rename(columns={"poling team": "code"})
+            selected_rows = selected_rows.rename(columns={"team_name": "team lider"})
+            extra_cols = [c if c != "poling team" else "code" for c in extra_cols]
+            extra_cols = [c if c != "team_name" else "team lider" for c in extra_cols]
+            display_cols = ['mapped', 'datetouse_display'] + extra_cols
+            display_cols = [c for c in display_cols if c in selected_rows.columns]
+
+            st.dataframe(selected_rows[display_cols], use_container_width=True)
 
             # Excel Export
             buffer = BytesIO()
