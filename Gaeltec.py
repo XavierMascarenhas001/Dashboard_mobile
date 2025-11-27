@@ -544,17 +544,17 @@ foundation_steelwork_keys = {
 }
 
 categories = [
-    ("Poles", pole_keys, "Quantity"),
-    ("Transformers", transformer_keys, "Quantity"),
+    ("Poles 🪵", pole_keys, "Quantity"),
+    ("Transformers ⚡🏭", transformer_keys, "Quantity"),
     ("Conductors", conductor_keys, "Length (Km)"),
     ("Conductors_2", conductor_2_keys, "Length (Km)"),
     ("Equipment", equipment_keys, "Quantity"),
     ("Insulators", insulator_keys, "Quantity"),
     ("LV Joints (Kits)", lv_joint_kit_keys, "Quantity"),
     ("LV Joint Modules", lv_joint_module_keys, "Quantity"),
-    ("HV Joints / Terminations", hv_joint_termination_keys, "Quantity"),
-    ("Cable Accessories", cable_accessory_keys, "Quantity"),
-    ("Foundation & Steelwork", foundation_steelwork_keys, "Quantity")
+    ("HV Joints / Terminations ⚡", hv_joint_termination_keys, "Quantity"),
+    ("Cable Accessories 🔌", cable_accessory_keys, "Quantity"),
+    ("Foundation & Steelwork 🏗️", foundation_steelwork_keys, "Quantity")
 ]
 
 
@@ -893,17 +893,17 @@ if resume_file is not None:
     convert_to_miles = st.checkbox("Convert Equipment/Conductor Length to Miles")
 
     categories = [
-        ("Poles", pole_keys, "Quantity"),
-        ("Transformers", transformer_keys, "Quantity"),
+        ("Poles 🪵", pole_keys, "Quantity"),
+        ("Transformers ⚡🏭", transformer_keys, "Quantity"),
         ("Conductors", conductor_keys, "Length (Km)"),
         ("Conductors_2", conductor_2_keys, "Length (Km)"),
         ("Equipment", equipment_keys, "Quantity"),
         ("Insulators", insulator_keys, "Quantity"),
         ("LV Joints (Kits)", lv_joint_kit_keys, "Quantity"),
         ("LV Joint Modules", lv_joint_module_keys, "Quantity"),
-        ("HV Joints / Terminations", hv_joint_termination_keys, "Quantity"),
-        ("Cable Accessories", cable_accessory_keys, "Quantity"),
-        ("Foundation & Steelwork", foundation_steelwork_keys, "Quantity")
+        ("HV Joints / Terminations ⚡", hv_joint_termination_keys, "Quantity"),
+        ("Cable Accessories 🔌", cable_accessory_keys, "Quantity"),
+        ("Foundation & Steelwork 🏗️", foundation_steelwork_keys, "Quantity")
     ]
 
     def sanitize_sheet_name(name: str) -> str:
@@ -982,7 +982,7 @@ if resume_file is not None:
         st.plotly_chart(fig, use_container_width=True, height=500)
 
         # COLLAPSIBLE BUTTONS SECTION
-        with st.expander("🔍 Click to show/hide drill-down options", expanded=False):
+        with st.expander("🔍 Explore whats inside the graph", expanded=False):
             st.subheader("Select Mapping to Drill-down:")
             
             # Option 1: Buttons in columns
