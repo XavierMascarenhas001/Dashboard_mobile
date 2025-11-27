@@ -979,7 +979,10 @@ if resume_file is not None:
         # Add background colors separately
         fig.update_layout(
             plot_bgcolor='rgba(0,0,0,0)',
-            paper_bgcolor='rgba(0,0,0,0)'
+            paper_bgcolor='rgba(0,0,0,0)',
+            yaxis=dict(
+                gridcolor='rgba(255,255,255,0.3)'  # Semi-transparent white grid
+            )
         )
 
         # Display the chart
