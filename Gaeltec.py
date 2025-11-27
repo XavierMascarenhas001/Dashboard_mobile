@@ -960,32 +960,15 @@ if resume_file is not None:
         st.subheader(f"🔹 {cat_name} — Total: {grand_total:,.2f}")
 
         # Draw the bar chart
-        fig = go.Figure()
-
-        fig.add_trace(go.Bar(
-            x=bar_data['Mapped'],
-            y=bar_data['Total'],
-            text=bar_data['Total'],
-            textposition='outside',
-            marker=dict(
-                color='orange',
-                line=dict(color='white', width=2)
-            ),
-            texttemplate='%{y:,.2f}',
-            hovertemplate='<b>%{x}</b><br>Total: %{y:,.2f}<extra></extra>'
-        ))
-
-        fig.update_layout(
-            title=f"{cat_name} Overview",
-            xaxis_title="Mapping",
-            yaxis_title=y_axis_label,
-            plot_bgcolor='black',
-            paper_bgcolor='black',
-            font=dict(color='white'),
-            xaxis=dict(showgrid=False),
-            yaxis=dict(showgrid=True, gridcolor='gray')
+        fig = px.bar(
+            bar_data,
+            x='Mapped', 
+            y='Total',
+            text='Total',
+            title=f"{cat_name} Overview"
         )
 
+        # NO styling at all
         click = plotly_events(
             fig,
             click_event=True,
