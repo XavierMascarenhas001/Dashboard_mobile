@@ -968,6 +968,12 @@ if resume_file is not None:
             title=f"{cat_name} Overview"
         )
 
+        # DEBUG: Check what Plotly actually received
+        st.write("🔍 **DEBUG - Plotly Data:**")
+        st.write(f"X values: {fig.data[0].x}")
+        st.write(f"Y values: {fig.data[0].y}")
+        st.write(f"Text values: {fig.data[0].text}")
+
         # NO styling at all
         click = plotly_events(
             fig,
