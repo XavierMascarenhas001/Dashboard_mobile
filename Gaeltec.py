@@ -979,8 +979,14 @@ if resume_file is not None:
             coloraxis_showscale=False
         )
     
-        click = plotly_events(fig, click_event=True)
-        st.plotly_chart(fig, use_container_width=True)
+        # 🔥 Correctly indented clickable chart
+        click = plotly_events(
+            fig,
+            click_event=True,
+            override_height=500,
+            override_width="100%"
+        )
+
     
         # Drill-down when clicking
         if click:
