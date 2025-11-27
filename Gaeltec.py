@@ -968,11 +968,13 @@ if resume_file is not None:
             title=f"{cat_name} Overview"
         )
 
-        # DEBUG: Check what Plotly actually received
-        st.write("🔍 **DEBUG - Plotly Data:**")
-        st.write(f"X values: {fig.data[0].x}")
-        st.write(f"Y values: {fig.data[0].y}")
-        st.write(f"Text values: {fig.data[0].text}")
+        # FIX: Force Y-axis to show the actual values
+        max_value = bar_data['Total'].max()
+        fig.update_layout(
+            yaxis=dict(
+                range=[0, max_value * 1.1]  # Add 10% padding
+            )
+        )
 
         # NO styling at all
         click = plotly_events(
