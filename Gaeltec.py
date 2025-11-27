@@ -981,28 +981,34 @@ if resume_file is not None:
         # Display the chart
         st.plotly_chart(fig, use_container_width=True, height=500)
 
-        # ADD BUTTONS FOR EACH BAR
-        st.subheader("🔍 Drill-down by Mapping:")
-        
-        # Create columns for buttons
-        cols = st.columns(3)  # 3 buttons per row
-        
-        for idx, mapping_value in enumerate(bar_data['Mapped']):
-            col_idx = idx % 3  # Which column to use (0, 1, or 2)
+        # COLLAPSIBLE BUTTONS SECTION
+        with st.expander("🔍 Click to show/hide drill-down options", expanded=False):
+            st.subheader("Select Mapping to Drill-down:")
             
-            with cols[col_idx]:
-                # Create a unique key for each button
-                button_key = f"btn_{cat_name}_{mapping_value}_{idx}"
+            # Option 1: Buttons in columns
+            cols = st.columns(3)  # 3 buttons per row
+            
+            for idx, mapping_value in enumerate(bar_data['Mapped']):
+                col_idx = idx % 3  # Which column to use (0, 1, or 2)
                 
-                if st.button(f"📊 {mapping_value}", key=button_key, use_container_width=True):
-                    # Store the selected mapping in session state
-                    st.session_state[f"selected_{cat_name}"] = mapping_value
-        
-        # Check if a mapping was selected (either from buttons or session state)
+                with cols[col_idx]:
+                    button_key = f"btn_{cat_name}_{mapping_value}_{idx}"
+                    
+                    if st.button(f"📊 {mapping_value}", key=button_key, use_container_width=True):
+                        st.session_state[f"selected_{cat_name}"] = mapping_value
+                        st.rerun()  # Refresh to show the details immediately
+
+        # Check if a mapping was selected
         selected_mapping = st.session_state.get(f"selected_{cat_name}")
         
         if selected_mapping:
             st.subheader(f"Details for: **{selected_mapping}**")
+            
+            # Add a button to clear the selection
+            if st.button("❌ Clear Selection", key=f"clear_{cat_name}"):
+                del st.session_state[f"selected_{cat_name}"]
+                st.rerun()
+            
             selected_rows = sub_df[sub_df['mapped'] == selected_mapping].copy()
             selected_rows = selected_rows.loc[:, ~selected_rows.columns.duplicated()]
 
@@ -1022,9 +1028,7 @@ if resume_file is not None:
 
             if not selected_rows.empty:
                 st.dataframe(selected_rows[display_cols], use_container_width=True)
-                
-                # Show summary stats
-                st.write(f"**Summary:** {len(selected_rows)} records found")
+                st.write(f"**Total records:** {len(selected_rows)}")
                 
                 if 'qsub_clean' in selected_rows.columns:
                     total_qsub = selected_rows['qsub_clean'].sum()
