@@ -974,22 +974,8 @@ if resume_file is not None:
             title=f"{cat_name} Overview",
             xaxis_title="Mapping",
             yaxis_title=y_axis_label,
-            # Universal background that adapts to theme
-            plot_bgcolor='rgba(0,0,0,0)',
-            paper_bgcolor='rgba(0,0,0,0)',
-            font=dict(color='auto'),
-            # Universal axis styling
-            xaxis=dict(
-                showgrid=False,
-                linecolor='#cccccc',
-                tickfont=dict(color='auto')
-            ),
-            yaxis=dict(
-                showgrid=True,
-                gridcolor='rgba(128,128,128,0.2)',
-                linecolor='#cccccc',
-                tickfont=dict(color='auto')
-            )
+            plot_bgcolor='transparent',
+            paper_bgcolor='transparent'
         )
 
         # Display the chart
