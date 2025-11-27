@@ -587,7 +587,7 @@ st.markdown("<h1>📊 Data Management Dashboard</h1>", unsafe_allow_html=True)
 # -------------------------------
 # --- Upload Aggregated Parquet file ---
 # --- Load aggregated Parquet file ---
-aggregated_file = r"CF_Teams_aggregated.parquet"
+aggregated_file = r"CF_aggregated.parquet"
 if aggregated_file is not None:
     df = pd.read_parquet(aggregated_file)
     df.columns = df.columns.str.strip().str.lower()  # normalize columns
@@ -607,7 +607,7 @@ if aggregated_file is not None:
         df['datetouse_display'] = "Unplanned"
 
 # --- Load Resume Parquet file (for %Complete pie chart) ---
-resume_file = r"CF_Teams_resume.parquet"
+resume_file = r"CF_resume.parquet"
 if resume_file is not None:
     resume_df = pd.read_parquet(resume_file)
     resume_df.columns = resume_df.columns.str.strip().str.lower()  # normalize columns
