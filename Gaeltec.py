@@ -961,29 +961,36 @@ if resume_file is not None:
         st.subheader(f"🔹 {cat_name} — Total: {grand_total:,.2f}")
 
         # Draw the bar chart
-        # FIX: Use go.Figure with explicit data types
-        fig = go.Figure(data=[
-            go.Bar(
-                x=bar_data['Mapped'].astype(str).tolist(),  # Force string list
-                y=bar_data['Total'].astype(float).tolist(), # Force float list
-                text=bar_data['Total'].astype(float).tolist(),
-                texttemplate='%{y:,.1f}',
-                textposition='outside'
-            )
-        ])
+        # FIX: Use px.bar but with proper data type conversion
+        bar_data_fixed = bar_data.copy()
+        bar_data_fixed['Total'] = bar_data_fixed['Total'].astype(float)
+        bar_data_fixed['Mapped'] = bar_data_fixed['Mapped'].astype(str)
+
+        fig = px.bar(
+            bar_data_fixed,
+            x='Mapped', 
+            y='Total',
+            text='Total',
+            title=f"{cat_name} Overview",
+            labels={'Mapped': 'Mapping', 'Total': y_axis_label}
+        )
+        
+        fig.update_traces(
+            texttemplate='%{y:,.1f}',
+            textposition='outside'
+        )
 
         fig.update_layout(
-            title=f"{cat_name} Overview",
             xaxis_title="Mapping",
             yaxis_title=y_axis_label
         )
 
-        # Use native Streamlit plotly_chart with selection
-        selection = st.plotly_chart(
+        click = plotly_events(
             fig,
-            on_select="rerun",
-            key=f"select_{cat_name}",
-            height=500
+            click_event=True,
+            override_height=500,
+            override_width="100%",
+            key=f"click_{cat_name}"
         )
     
         # Drill-down when selecting
