@@ -986,33 +986,31 @@ if resume_file is not None:
             height=500
         )
     
-        # Drill-down when clicking
-        if click:
-            clicked_mapping = click[0]["x"]
-    
-            st.subheader(f"Details for: **{clicked_mapping}**")
-            selected_rows = sub_df[sub_df['mapped'] == clicked_mapping].copy()
-            selected_rows = selected_rows.loc[:, ~selected_rows.columns.duplicated()]
-    
-
-            if 'datetouse' in selected_rows.columns:
-                # Create display column
-                selected_rows['datetouse_display'] = pd.to_datetime(
-                    selected_rows['datetouse'], errors='coerce'
-                ).dt.strftime("%d/%m/%Y")
-                # Mark empty dates as "Unplanned"
-                selected_rows.loc[selected_rows['datetouse'].isna(), 'datetouse_display'] = "Unplanned"
-
-            
-            extra_cols = ['pole','poling team','team_name', 'projectmanager', 'project', 'shire', 'segmentdesc', 'sourcefile']
-            selected_rows = selected_rows.rename(columns={"poling team": "code"})
-            selected_rows = selected_rows.rename(columns={"team_name": "team lider"})
-            extra_cols = [c if c != "poling team" else "code" for c in extra_cols]
-            extra_cols = [c if c != "team_name" else "team lider" for c in extra_cols]
-            display_cols = ['mapped', 'datetouse_display'] + extra_cols
-            display_cols = [c for c in display_cols if c in selected_rows.columns]
-    
-            st.dataframe(selected_rows[display_cols], use_container_width=True)
+        # Drill-down when selecting
+        if st.session_state.get(f"select_{cat_name}_selection"):
+            selected_points = st.session_state[f"select_{cat_name}_selection"].points
+            if selected_points:
+                clicked_mapping = selected_points[0]['x']
+        
+                st.subheader(f"Details for: **{clicked_mapping}**")
+                selected_rows = sub_df[sub_df['mapped'] == clicked_mapping].copy()
+                selected_rows = selected_rows.loc[:, ~selected_rows.columns.duplicated()]
+        
+                if 'datetouse' in selected_rows.columns:
+                    selected_rows['datetouse_display'] = pd.to_datetime(
+                        selected_rows['datetouse'], errors='coerce'
+                    ).dt.strftime("%d/%m/%Y")
+                    selected_rows.loc[selected_rows['datetouse'].isna(), 'datetouse_display'] = "Unplanned"
+                
+                extra_cols = ['pole','poling team','team_name', 'projectmanager', 'project', 'shire', 'segmentdesc', 'sourcefile']
+                selected_rows = selected_rows.rename(columns={"poling team": "code"})
+                selected_rows = selected_rows.rename(columns={"team_name": "team lider"})
+                extra_cols = [c if c != "poling team" else "code" for c in extra_cols]
+                extra_cols = [c if c != "team_name" else "team lider" for c in extra_cols]
+                display_cols = ['mapped', 'datetouse_display'] + extra_cols
+                display_cols = [c for c in display_cols if c in selected_rows.columns]
+        
+                st.dataframe(selected_rows[display_cols], use_container_width=True)
 
             # Excel Export
             buffer = BytesIO()
