@@ -974,11 +974,11 @@ if resume_file is not None:
             title=f"{cat_name} Overview",
             xaxis_title="Mapping",
             yaxis_title=y_axis_label,
-            # Add these universal background settings:
+            # Universal background that adapts to theme
             plot_bgcolor='rgba(0,0,0,0)',
             paper_bgcolor='rgba(0,0,0,0)',
             font=dict(color='auto'),
-            # Optional: Add universal axis styling
+            # Universal axis styling
             xaxis=dict(
                 showgrid=False,
                 linecolor='#cccccc',
@@ -987,7 +987,7 @@ if resume_file is not None:
             yaxis=dict(
                 showgrid=True,
                 gridcolor='rgba(128,128,128,0.2)',
-                linecolor='#cccccc', 
+                linecolor='#cccccc',
                 tickfont=dict(color='auto')
             )
         )
