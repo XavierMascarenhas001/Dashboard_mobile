@@ -961,41 +961,49 @@ if resume_file is not None:
         st.subheader(f"🔹 {cat_name} — Total: {grand_total:,.2f}")
 
         # Draw the bar chart
-        # FIX: Use px.bar but with proper data type conversion
-        # Use px.bar with fixed data types and native Streamlit selection
-        bar_data_fixed = bar_data.copy()
-        bar_data_fixed['Total'] = bar_data_fixed['Total'].astype(float)
-        bar_data_fixed['Mapped'] = bar_data_fixed['Mapped'].astype(str)
+        # FIX: Use go.Figure with explicit data types
+        fig = go.Figure(data=[
+            go.Bar(
+                x=bar_data['Mapped'].astype(str).tolist(),
+                y=bar_data['Total'].astype(float).tolist(),
+                text=bar_data['Total'].astype(float).tolist(),
+                texttemplate='%{y:,.1f}',
+                textposition='outside'
+            )
+        ])
 
-        fig = px.bar(
-            bar_data_fixed,
-            x='Mapped', 
-            y='Total',
-            text='Total',
+        fig.update_layout(
             title=f"{cat_name} Overview",
-            labels={'Mapped': 'Mapping', 'Total': y_axis_label}
-        )
-        
-        fig.update_traces(
-            texttemplate='%{y:,.1f}',
-            textposition='outside'
+            xaxis_title="Mapping",
+            yaxis_title=y_axis_label
         )
 
-        # Use native Streamlit selection (more reliable)
-        st.plotly_chart(
-            fig,
-            on_select="rerun",
-            key=f"select_{cat_name}",
-            height=500
-        )
-    
-        # Drill-down when selecting
-        selection_key = f"select_{cat_name}_selection"
-        if selection_key in st.session_state and st.session_state[selection_key].points:
-            clicked_mapping = st.session_state[selection_key].points[0]['x']
+        # Display the chart
+        st.plotly_chart(fig, use_container_width=True, height=500)
+
+        # ADD BUTTONS FOR EACH BAR
+        st.subheader("🔍 Drill-down by Mapping:")
+        
+        # Create columns for buttons
+        cols = st.columns(3)  # 3 buttons per row
+        
+        for idx, mapping_value in enumerate(bar_data['Mapped']):
+            col_idx = idx % 3  # Which column to use (0, 1, or 2)
             
-            st.subheader(f"Details for: **{clicked_mapping}**")
-            selected_rows = sub_df[sub_df['mapped'] == clicked_mapping].copy()
+            with cols[col_idx]:
+                # Create a unique key for each button
+                button_key = f"btn_{cat_name}_{mapping_value}_{idx}"
+                
+                if st.button(f"📊 {mapping_value}", key=button_key, use_container_width=True):
+                    # Store the selected mapping in session state
+                    st.session_state[f"selected_{cat_name}"] = mapping_value
+        
+        # Check if a mapping was selected (either from buttons or session state)
+        selected_mapping = st.session_state.get(f"selected_{cat_name}")
+        
+        if selected_mapping:
+            st.subheader(f"Details for: **{selected_mapping}**")
+            selected_rows = sub_df[sub_df['mapped'] == selected_mapping].copy()
             selected_rows = selected_rows.loc[:, ~selected_rows.columns.duplicated()]
 
             if 'datetouse' in selected_rows.columns:
@@ -1012,8 +1020,18 @@ if resume_file is not None:
             display_cols = ['mapped', 'datetouse_display'] + extra_cols
             display_cols = [c for c in display_cols if c in selected_rows.columns]
 
-            st.dataframe(selected_rows[display_cols], use_container_width=True)
-
+            if not selected_rows.empty:
+                st.dataframe(selected_rows[display_cols], use_container_width=True)
+                
+                # Show summary stats
+                st.write(f"**Summary:** {len(selected_rows)} records found")
+                
+                if 'qsub_clean' in selected_rows.columns:
+                    total_qsub = selected_rows['qsub_clean'].sum()
+                    st.write(f"Total QSUB: {total_qsub:,.2f}")
+            else:
+                st.info("No records found for this selection")
+                
             # Excel Export
             buffer = BytesIO()
             with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
