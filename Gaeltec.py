@@ -973,7 +973,23 @@ if resume_file is not None:
         fig.update_layout(
             title=f"{cat_name} Overview",
             xaxis_title="Mapping",
-            yaxis_title=y_axis_label
+            yaxis_title=y_axis_label,
+            # Add these universal background settings:
+            plot_bgcolor='rgba(0,0,0,0)',
+            paper_bgcolor='rgba(0,0,0,0)',
+            font=dict(color='auto'),
+            # Optional: Add universal axis styling
+            xaxis=dict(
+                showgrid=False,
+                linecolor='#cccccc',
+                tickfont=dict(color='auto')
+            ),
+            yaxis=dict(
+                showgrid=True,
+                gridcolor='rgba(128,128,128,0.2)',
+                linecolor='#cccccc', 
+                tickfont=dict(color='auto')
+            )
         )
 
         # Display the chart
