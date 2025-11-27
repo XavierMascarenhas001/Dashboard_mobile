@@ -967,16 +967,16 @@ if resume_file is not None:
             color='Total',
             text='Total',
             title=f"{cat_name} Overview",
-            color_continuous_scale=['rgba(128,0,128,1)','rgba(147,112,219,1)',
-                                    'rgba(186,85,211,1)','rgba(221,160,221,1)'],
+            color_continuous_scale=['purple', 'mediumpurple', 'orchid', 'plum'],
             labels={'Mapped': 'Mapping', 'Total': y_axis_label}
         )
     
         fig.update_layout(
-            plot_bgcolor='rgba(0,0,0,1)',
-            paper_bgcolor='rgba(0,0,0,1)',
+            plot_bgcolor='black',
+            paper_bgcolor='black',
             font=dict(color='white'),
-            coloraxis_showscale=False
+            xaxis=dict(showgrid=True, gridcolor='gray'),
+            yaxis=dict(showgrid=True, gridcolor='gray')
         )
     
         # 🔥 Correctly indented clickable chart
