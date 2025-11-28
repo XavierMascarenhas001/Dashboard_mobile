@@ -9,4 +9,6 @@ streamlit-plotly-events
 pyarrow
 openpyxl
 matplotlib
+requirements
+
 
