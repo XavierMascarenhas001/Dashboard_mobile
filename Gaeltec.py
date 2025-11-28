@@ -13,6 +13,8 @@ import base64
 from streamlit_plotly_events import plotly_events
 import plotly.graph_objects as go
 import matplotlib.pyplot as plt
+import requests
+from streamlit import cache_data
 
 # --- Page config for wide layout ---
 st.set_page_config(
@@ -719,70 +721,225 @@ if resume_file is not None:
             """,
             unsafe_allow_html=True
         )
-    with col_top_right:
-        st.markdown("<h3 style='text-align:center; color:white;'>Works Complete </h3>", unsafe_allow_html=True)
 
-
-
-        # --- Top-right Pie Chart: % Complete ---
-        try:
-            # Ensure resume_df exists
-            if 'resume_df' in locals():
-
-                # Normalize both columns to lowercase strings without extra spaces
-                filtered_segments = filtered_df['segment'].dropna().astype(str).str.strip().str.lower().unique()
-                resume_df['section'] = resume_df['section'].dropna().astype(str).str.strip().str.lower()
-
-                # Check if necessary columns exist in resume_df
-                if {'section', '%complete'}.issubset(resume_df.columns):
-
-                    # Filter resume to only include relevant sections
-                    resume_filtered = resume_df[resume_df['section'].isin(filtered_segments)]
-
-                    if not resume_filtered.empty:
-                        avg_complete = resume_filtered['%complete'].mean()
-                        avg_complete = min(max(avg_complete, 0), 100)  # clamp 0-100
-
-                        # Pie chart data
-                        pie_data = pd.DataFrame({
-                            'Status': ['Completed', 'Done or Remaining'],
-                            'Value': [avg_complete, 100 - avg_complete]
-                        })
-
-                        # Plot pie chart
-                        fig_pie = px.pie(
-                            pie_data,
-                            names='Status',
-                            values='Value',
-                            color='Status',
-                            color_discrete_map={'Completed': 'green', 'Done or Remaining': 'red'},
-                            hole=0.6
+        with col_top_right:
+            st.markdown("<h3 style='text-align:center; color:white;'>Revenue</h3>", unsafe_allow_html=True)
+            # --- Top-right Chart: Revenue Over Time ---
+            try:
+                # Use the filtered_df that has been through all the sidebar filters
+                if 'filtered_df' in locals() and not filtered_df.empty and 'total' in filtered_df.columns:
+                    
+                    # Prepare data for the chart - exclude blanks and dates before 2000
+                    chart_df = filtered_df[filtered_df['datetouse_dt'].notna()].copy()
+                    chart_df = chart_df[chart_df['datetouse_dt'] >= '2000-01-01']
+                    
+                    # Convert total column to numeric, handling errors
+                    chart_df['total'] = pd.to_numeric(chart_df['total'], errors='coerce')
+                    
+                    # Remove any rows where total conversion failed
+                    chart_df = chart_df[chart_df['total'].notna()]
+                    
+                    if not chart_df.empty:
+                        # Group by date and SUM the total column (not count projects)
+                        revenue_by_date = chart_df.groupby('datetouse_dt')['total'].sum().reset_index()
+                        revenue_by_date = revenue_by_date.sort_values('datetouse_dt')
+                        
+                        # Format the revenue numbers for better readability
+                        revenue_by_date['total_formatted'] = revenue_by_date['total'].apply(
+                            lambda x: f"€{x:,.0f}" if x >= 1000 else f"€{x:.0f}"
                         )
-                        fig_pie.update_traces(
-                            textinfo='percent+label',
-                            textfont_size=20
+                        
+                        # Create the line chart
+                        fig_revenue = px.line(
+                            revenue_by_date, 
+                            x='datetouse_dt', 
+                            y='total',
+                            title="Daily Revenue",
+                            labels={'datetouse_dt': 'Date', 'total': 'Revenue (€)'}
                         )
-                        fig_pie.update_layout(
-                            title_text="",
-                            title_font_size=20,
-                            font=dict(color='white'),
+                        fig_revenue.update_traces(
+                            mode='lines+markers',
+                            line=dict(width=3, color='#32CD32'),
+                            marker=dict(size=6, color='#32CD32'),
+                            hovertemplate='<b>Date: %{x}</b><br>Revenue: €%{y:,.0f}<extra></extra>'
+                        )
+                        fig_revenue.update_layout(
+                            xaxis=dict(
+                                tickformat="%b %Y",
+                                tickangle=45,
+                                gridcolor='rgba(128,128,128,0.2)'
+                            ),
+                            yaxis=dict(
+                                title='Revenue (€)',
+                                tickformat=",.0f",
+                                gridcolor='rgba(128,128,128,0.2)'
+                            ),
                             paper_bgcolor='rgba(0,0,0,0)',
                             plot_bgcolor='rgba(0,0,0,0)',
-                            showlegend=True,
-                            legend=dict(font=dict(color='white'))
+                            font=dict(color='white'),
+                            title_font_size=16,
+                            hovermode='x unified'
                         )
-
+                        
                         # Display in top-right column
-                        if 'col_top_right' in locals():
-                            col_top_right.plotly_chart(fig_pie, use_container_width=True)
-                        else:
+                        st.plotly_chart(fig_revenue, use_container_width=True)
+                        
+                    else:
+                        # Show info if no valid dates after filtering
+                        st.info("No projects with dates since 2000 for selected filters.")
+                            
+                else:
+                    st.info("No data available for the selected filters.")
+
+            except Exception as e:
+                st.warning(f"Could not generate revenue chart: {e}")
+
+    # Display Total & Variation
+    col_top_left, col_top_right = st.columns([1, 1])
+    with col_top_left:
+        st.markdown("<h3 style='text-align:center; color:white;'>Works Complete</h3>", unsafe_allow_html=True)
+        
+
+    with col_top_right:
+        st.markdown("<h3 style='text-align:center; color:white;'>Projects Distribution</h3>", unsafe_allow_html=True)
+        # --- Top-right Pie Chart: Projects Distribution ---
+        try:
+            if 'filtered_df' in locals() and not filtered_df.empty and 'project' in filtered_df.columns:
+                
+                # Count projects and get top projects
+                project_counts = filtered_df['project'].value_counts().reset_index()
+                project_counts.columns = ['Project', 'total']
+                
+                # If too many projects, group smaller ones into "Other"
+                if len(project_counts) > 8:
+                    top_projects = project_counts.head(7)
+                    other_count = project_counts['total'].iloc[7:].sum()
+                    other_row = pd.DataFrame({'Project': ['Other'], 'total': [other_count]})
+                    project_data = pd.concat([top_projects, other_row], ignore_index=True)
+                else:
+                    project_data = project_counts
+                
+                # Create pie chart
+                fig_projects = px.pie(
+                    project_data,
+                    names='Project',
+                    values='total',
+                    title="",
+                    hole=0.4
+                )
+                fig_projects.update_traces(
+                    textinfo='percent+label',
+                    textfont_size=14,
+                    marker=dict(line=dict(color='#000000', width=1))
+                )
+                fig_projects.update_layout(
+                    title_text="",
+                    title_font_size=16,
+                    font=dict(color='white'),
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    showlegend=False,
+                    annotations=[dict(text=f'Total<br>{len(filtered_df)}', x=0.5, y=0.5, font_size=16, showarrow=False)]
+                )
+                
+                st.plotly_chart(fig_projects, use_container_width=True)
+                
+            else:
+                st.info("No project data available for the selected filters.")
+                
+        except Exception as e:
+            st.warning(f"Could not generate projects pie chart: {e}")
+
+    # Display Total & Variation
+    col_top_left, col_top_right = st.columns([1, 1])
+    with col_top_left:
+        # Left side: Projects & Segments Overview and Works Complete pie chart
+        col_left_top, col_left_bottom = st.columns([1, 1])
+        
+        with col_left_top:
+            st.markdown("<h3 style='color:white;'>Projects & Segments Overview</h3>", unsafe_allow_html=True)
+
+            if 'project' in filtered_df.columns and 'segmentcode' in filtered_df.columns:
+                projects = filtered_df['project'].dropna().unique()
+                if len(projects) == 0:
+                    st.info("No projects found for the selected filters.")
+                else:
+                    for proj in sorted(projects):
+                        segments = filtered_df[filtered_df['project'] == proj]['segmentcode'].dropna().unique()
+                    
+                        # Use expander to make segment list scrollable
+                        with st.expander(f"Project: {proj} ({len(segments)} segments)"):
+                            if len(segments) > 0:
+                                # Scrollable container for segments
+                                st.markdown(
+                                    "<div style='max-height:150px; overflow-y:auto; padding:5px; border:1px solid #444;'>"
+                                    + "<br>".join(segments.astype(str))
+                                    + "</div>",
+                                    unsafe_allow_html=True
+                                )
+                            else:
+                                st.write("No segment codes for this project.")
+            else:
+                st.info("Project or Segment Code columns not found in the data.")
+        
+        with col_top_right:
+            st.markdown("<h3 style='text-align:center; color:white;'>Works Complete</h3>", unsafe_allow_html=True)
+            # --- Pie Chart: % Complete ---
+            try:
+                # Ensure resume_df exists
+                if 'resume_df' in locals():
+
+                    # Normalize both columns to lowercase strings without extra spaces
+                    filtered_segments = filtered_df['segment'].dropna().astype(str).str.strip().str.lower().unique()
+                    resume_df['section'] = resume_df['section'].dropna().astype(str).str.strip().str.lower()
+
+                    # Check if necessary columns exist in resume_df
+                    if {'section', '%complete'}.issubset(resume_df.columns):
+
+                        # Filter resume to only include relevant sections
+                        resume_filtered = resume_df[resume_df['section'].isin(filtered_segments)]
+
+                        if not resume_filtered.empty:
+                            avg_complete = resume_filtered['%complete'].mean()
+                            avg_complete = min(max(avg_complete, 0), 100)  # clamp 0-100
+
+                            # Pie chart data
+                            pie_data = pd.DataFrame({
+                                'Status': ['Completed', 'Done or Remaining'],
+                                'Value': [avg_complete, 100 - avg_complete]
+                            })
+
+                            # Plot pie chart
+                            fig_pie = px.pie(
+                                pie_data,
+                                names='Status',
+                                values='Value',
+                                color='Status',
+                                color_discrete_map={'Completed': 'green', 'Done or Remaining': 'red'},
+                                hole=0.6
+                            )
+                            fig_pie.update_traces(
+                                textinfo='percent+label',
+                                textfont_size=20
+                            )
+                            fig_pie.update_layout(
+                                title_text="",
+                                title_font_size=20,
+                                font=dict(color='white'),
+                                paper_bgcolor='rgba(0,0,0,0)',
+                                plot_bgcolor='rgba(0,0,0,0)',
+                                showlegend=True,
+                                legend=dict(font=dict(color='white'))
+                            )
+
+                            # Display pie chart
                             st.plotly_chart(fig_pie, use_container_width=True)
 
-                    else:
-                        st.info("No matching sections found for the selected filters to generate % completion chart.")
+                        else:
+                            st.info("No matching sections found for the selected filters to generate % completion chart.")
 
-        except Exception as e:
-            st.warning(f"Could not generate % Complete pie chart: {e}")
+            except Exception as e:
+                st.warning(f"Could not generate % Complete pie chart: {e}")
 
 
     # -------------------------------
@@ -861,30 +1018,8 @@ if resume_file is not None:
 
 
     with col_desc:
-        st.markdown("<h3 style='color:white;'>Projects & Segments Overview</h3>", unsafe_allow_html=True)
+        st.markdown("<h3 style='color:white;'>Weather </h3>", unsafe_allow_html=True)
 
-        if 'project' in filtered_df.columns and 'segmentcode' in filtered_df.columns:
-            projects = filtered_df['project'].dropna().unique()
-            if len(projects) == 0:
-                st.info("No projects found for the selected filters.")
-            else:
-                for proj in sorted(projects):
-                    segments = filtered_df[filtered_df['project'] == proj]['segmentcode'].dropna().unique()
-                
-                    # Use expander to make segment list scrollable
-                    with st.expander(f"Project: {proj} ({len(segments)} segments)"):
-                        if len(segments) > 0:
-                            # Scrollable container for segments
-                            st.markdown(
-                                "<div style='max-height:150px; overflow-y:auto; padding:5px; border:1px solid #444;'>"
-                                + "<br>".join(segments.astype(str))
-                                + "</div>",
-                                unsafe_allow_html=True
-                            )
-                        else:
-                            st.write("No segment codes for this project.")
-        else:
-            st.info("Project or Segment Code columns not found in the data.")
 
 # -------------------------------
 # --- Mapping Bar Charts + Drill-down + Excel Export ---
@@ -1017,6 +1152,7 @@ if resume_file is not None:
                 st.rerun()
             
             selected_rows = sub_df[sub_df['mapped'] == selected_mapping].copy()
+            selected_rows.columns = selected_rows.columns.str.strip().str.lower()
             selected_rows = selected_rows.loc[:, ~selected_rows.columns.duplicated()]
 
             if 'datetouse' in selected_rows.columns:
@@ -1027,7 +1163,7 @@ if resume_file is not None:
 
 
             # Your original approach but working:
-            extra_cols = ['pole','qsub','poling team','team_name', 'projectmanager', 'project', 'shire', 'segmentdesc', 'sourcefile']
+            extra_cols = ['pole','qsub','poling team','team_name', 'projectmanager', 'project', 'shire', 'segmentdesc','segmentcode', 'sourcefile']
 
             # Rename first
             selected_rows = selected_rows.rename(columns={
@@ -1056,24 +1192,6 @@ if resume_file is not None:
                 st.dataframe(selected_rows[display_cols], use_container_width=True)
                 st.write(f"**Total records:** {len(selected_rows)}")
     
-                if 'qsub_clean' in selected_rows.columns:
-                    total_qsub = selected_rows['qsub_clean'].sum()
-                    st.write(f"Total QSUB: {total_qsub:,.2f}")
-            else:
-                st.info("No records found for this selection")
-
-            #extra_cols = ['pole','qsub','poling team','team_name', 'projectmanager', 'project', 'shire', 'segmentdesc', 'sourcefile']
-            #selected_rows = selected_rows.rename(columns={"poling team": "code"})
-            #selected_rows = selected_rows.rename(columns={"team_name": "team lider"})
-            #extra_cols = [c if c != "poling team" else "code" for c in extra_cols]
-            #extra_cols = [c if c != "team_name" else "team lider" for c in extra_cols]
-            #display_cols = ['mapped', 'datetouse_display'] + extra_cols
-            #display_cols = [c for c in display_cols if c in selected_rows.columns]
-
-            if not selected_rows.empty:
-                st.dataframe(selected_rows[display_cols], use_container_width=True)
-                st.write(f"**Total records:** {len(selected_rows)}")
-                
                 if 'qsub_clean' in selected_rows.columns:
                     total_qsub = selected_rows['qsub_clean'].sum()
                     st.write(f"Total QSUB: {total_qsub:,.2f}")
