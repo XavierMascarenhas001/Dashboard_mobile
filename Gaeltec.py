@@ -1024,14 +1024,49 @@ if resume_file is not None:
                     selected_rows['datetouse'], errors='coerce'
                 ).dt.strftime("%d/%m/%Y")
                 selected_rows.loc[selected_rows['datetouse'].isna(), 'datetouse_display'] = "Unplanned"
-            
-            extra_cols = ['pole','qsub','poling team','team_name', 'projectmanager', 'project', 'shire', 'segmentdesc', 'sourcefile']
-            selected_rows = selected_rows.rename(columns={"poling team": "code"})
-            selected_rows = selected_rows.rename(columns={"team_name": "team lider"})
-            extra_cols = [c if c != "poling team" else "code" for c in extra_cols]
-            extra_cols = [c if c != "team_name" else "team lider" for c in extra_cols]
-            display_cols = ['mapped', 'datetouse_display'] + extra_cols
-            display_cols = [c for c in display_cols if c in selected_rows.columns]
+
+
+
+
+            # --- Rename columns FIRST ---
+            selected_rows = selected_rows.rename(columns={
+                "poling team": "code",
+                "team_name": "team lider"
+            })
+
+            # --- Now define extra columns using the NEW names ---
+            extra_cols = [
+                'pole',
+                'qsub',
+                'code',           # renamed
+                'team lider',     # renamed
+                'projectmanager',
+                'project',
+                'shire',
+                'segmentdesc',
+                'sourcefile'
+            ]
+
+            # --- Create display date column ---
+            if 'datetouse' in selected_rows.columns:
+                selected_rows['datetouse_display'] = pd.to_datetime(
+                    selected_rows['datetouse'], errors='coerce'
+                ).dt.strftime("%d/%m/%Y")
+
+                selected_rows.loc[selected_rows['datetouse'].isna(), 'datetouse_display'] = "Unplanned"
+
+            # --- Build final columns only if present ---
+            display_cols = ['mapped', 'datetouse_display'] + [
+                c for c in extra_cols if c in selected_rows.columns
+            ]
+
+            #extra_cols = ['pole','qsub','poling team','team_name', 'projectmanager', 'project', 'shire', 'segmentdesc', 'sourcefile']
+            #selected_rows = selected_rows.rename(columns={"poling team": "code"})
+            #selected_rows = selected_rows.rename(columns={"team_name": "team lider"})
+            #extra_cols = [c if c != "poling team" else "code" for c in extra_cols]
+            #extra_cols = [c if c != "team_name" else "team lider" for c in extra_cols]
+            #display_cols = ['mapped', 'datetouse_display'] + extra_cols
+            #display_cols = [c for c in display_cols if c in selected_rows.columns]
 
             if not selected_rows.empty:
                 st.dataframe(selected_rows[display_cols], use_container_width=True)
