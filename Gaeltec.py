@@ -1162,27 +1162,31 @@ def sanitize_sheet_name(name: str) -> str:
     name = re.sub(r'[^\x00-\x7F]', '_', name)  # remove Unicode like m²
     return name[:31]
 
-# --- Normalize keys in miscelaneous for safe merge ---
-if 'miscelaneous' in locals():
-    miscelaneous.columns = miscelaneous.columns.str.strip().str.lower()
-    if 'column_b' in miscelaneous.columns:
-        miscelaneous['column_b'] = miscelaneous['column_b'].astype(str).str.strip()
-    if 'column_k' in miscelaneous.columns:
-        miscelaneous['column_k'] = miscelaneous['column_k'].astype(str).str.strip()
+# -------------------------------
+# --- Create Material Code Lookup Dictionary ---
+# -------------------------------
+if 'miscelaneous' in locals() and 'column_b' in miscelaneous.columns and 'column_k' in miscelaneous.columns:
+    # Normalize columns
+    miscelaneous['column_b'] = miscelaneous['column_b'].astype(str).str.strip().str.lower()
+    miscelaneous['column_k'] = miscelaneous['column_k'].astype(str).str.strip()
+    
+    # Build dictionary: Column_B -> Column_K
+    material_dict = dict(zip(miscelaneous['column_b'], miscelaneous['column_k']))
+    st.write(f"Material dictionary created with {len(material_dict)} entries")
+else:
+    material_dict = {}
 
-# Normalize filtered_df
-filtered_df.columns = filtered_df.columns.str.strip().str.lower()
-
+# -------------------------------
+# --- Loop over categories ---
+# -------------------------------
 for cat_name, keys, y_label in categories:
 
-    # Only process if columns exist
     if 'item' not in filtered_df.columns or 'mapped' not in filtered_df.columns:
         st.warning("Missing required columns: item / mapped")
         continue
 
-    # Build regex pattern for this category’s keys
+    # Build regex pattern for category keys
     pattern = '|'.join([re.escape(k) for k in keys.keys()])
-
     mask = filtered_df['item'].astype(str).str.contains(pattern, case=False, na=False)
     sub_df = filtered_df[mask]
 
@@ -1202,23 +1206,19 @@ for cat_name, keys, y_label in categories:
         bar_data = sub_df['mapped'].value_counts().reset_index()
         bar_data.columns = ['Mapped', 'Total']
 
-    # Divide Conductors_2 by 1000
     if cat_name == "Conductors_2":
         bar_data['Total'] = bar_data['Total'] / 1000
 
-    # Convert conductor units if needed
+    # Convert units to miles if needed
     y_axis_label = y_label
     if cat_name in ["Conductors", "Conductors_2"] and convert_to_miles:
         bar_data['Total'] = bar_data['Total'] * 0.621371
         y_axis_label = "Length (Miles)"
 
-    # Compute grand total for the category
     grand_total = bar_data['Total'].sum()
-
-    # Update Streamlit subheader with total
     st.subheader(f"🔹 {cat_name} — Total: {grand_total:,.2f}")
 
-    # Draw the bar chart with unique key
+    # Plot bar chart
     fig = go.Figure(data=[
         go.Bar(
             x=bar_data['Mapped'].astype(str).tolist(),
@@ -1228,7 +1228,6 @@ for cat_name, keys, y_label in categories:
             textposition='outside'
         )
     ])
-
     fig.update_layout(
         title=f"{cat_name} Overview",
         xaxis_title="Mapping",
@@ -1237,13 +1236,15 @@ for cat_name, keys, y_label in categories:
         paper_bgcolor='rgba(0,0,0,0)',
         yaxis=dict(gridcolor='rgba(255,255,255,0.3)')
     )
+    st.plotly_chart(fig, use_container_width=True, height=500)
 
-    st.plotly_chart(fig, use_container_width=True, height=500, key=f"fig_{cat_name}")
-
-    # COLLAPSIBLE BUTTONS SECTION
+    # -------------------------------
+    # --- Drill-down section ---
+    # -------------------------------
     with st.expander("🔍 Click to explore more information", expanded=False):
         st.subheader("Select Mapping to Drill-down:")
-        cols = st.columns(3)  # 3 buttons per row
+        cols = st.columns(3)
+
         for idx, mapping_value in enumerate(bar_data['Mapped']):
             col_idx = idx % 3
             with cols[col_idx]:
@@ -1252,13 +1253,9 @@ for cat_name, keys, y_label in categories:
                     st.session_state[f"selected_{cat_name}"] = mapping_value
                     st.rerun()
 
-    # Check if a mapping was selected
     selected_mapping = st.session_state.get(f"selected_{cat_name}")
-
     if selected_mapping:
         st.subheader(f"Details for: **{selected_mapping}**")
-
-        # Add a button to clear the selection
         if st.button("❌ Clear Selection", key=f"clear_{cat_name}"):
             del st.session_state[f"selected_{cat_name}"]
             st.rerun()
@@ -1267,83 +1264,72 @@ for cat_name, keys, y_label in categories:
         selected_rows.columns = selected_rows.columns.str.strip().str.lower()
         selected_rows = selected_rows.loc[:, ~selected_rows.columns.duplicated()]
 
-        if 'miscelaneous' in locals() and 'column_b' in miscelaneous.columns and 'column_k' in miscelaneous.columns:
-            selected_rows = selected_rows.merge(
-                miscelaneous[['column_b', 'column_k']].rename(columns={'column_b':'item', 'column_k':'material code'}),
-                on='item',  # now both are normalized strings
-                how='left'
-            )
+        # -------------------------------
+        # --- Map Material Code using dictionary ---
+        # -------------------------------
+        if material_dict:
+            selected_rows['item_norm'] = selected_rows['item'].astype(str).str.strip().str.lower()
+            selected_rows['material code'] = selected_rows['item_norm'].map(material_dict)
+            selected_rows = selected_rows.drop(columns=['item_norm'])
 
-            if cf_key_col in selected_rows.columns and miscel_key_col in miscelaneous.columns:
-                selected_rows = selected_rows.merge(
-                    miscelaneous[[miscel_key_col, material_col]].rename(columns={material_col: 'material code'}),
-                    left_on=cf_key_col,
-                    right_on=miscel_key_col,
-                    how='left'
-                )
-
-        # Create display date
+        # -------------------------------
+        # --- Prepare display columns ---
+        # -------------------------------
         if 'datetouse' in selected_rows.columns:
             selected_rows['datetouse_display'] = pd.to_datetime(
                 selected_rows['datetouse'], errors='coerce'
             ).dt.strftime("%d/%m/%Y")
             selected_rows.loc[selected_rows['datetouse'].isna(), 'datetouse_display'] = "Unplanned"
 
-        # Extra columns and display
-        extra_cols = ['pole','qsub','poling team','team_name', 'projectmanager', 'project', 'shire',
-                      'segmentdesc','segmentcode', 'sourcefile']
-        selected_rows = selected_rows.rename(columns={"poling team": "code", "team_name": "team lider"})
+        extra_cols = ['pole','qsub','poling team','team_name','projectmanager','project','shire','segmentdesc','segmentcode','sourcefile']
+        selected_rows = selected_rows.rename(columns={
+            "poling team": "code",
+            "team_name": "team lider"
+        })
         extra_cols = [c if c != "poling team" else "code" for c in extra_cols]
         extra_cols = [c if c != "team_name" else "team lider" for c in extra_cols]
 
         display_cols = ['mapped', 'datetouse_display'] + extra_cols
-        if 'material code' in selected_rows.columns:
-            missing_materials = selected_rows['material code'].isna().sum()
-            st.write(f"Rows without Material Code after merge: {missing_materials}")
-        else:
-            st.write("Material Code column was not created")
+        if 'material code' in selected_rows.columns and 'material code' not in display_cols:
+            display_cols.append('material code')
 
         display_cols = [c for c in display_cols if c in selected_rows.columns]
 
-        # Display table
+        # -------------------------------
+        # --- Display table ---
+        # -------------------------------
         if not selected_rows.empty:
             st.dataframe(selected_rows[display_cols], use_container_width=True)
             st.write(f"**Total records:** {len(selected_rows)}")
             if 'qsub_clean' in selected_rows.columns:
-                st.write(f"Total QSUB: {selected_rows['qsub_clean'].sum():,.2f}")
+                total_qsub = selected_rows['qsub_clean'].sum()
+                st.write(f"Total QSUB: {total_qsub:,.2f}")
         else:
             st.info("No records found for this selection")
 
-        # Excel Export - Aggregated
+        # -------------------------------
+        # --- Excel Export (Aggregated) ---
+        # -------------------------------
         buffer_agg = BytesIO()
         with pd.ExcelWriter(buffer_agg, engine='openpyxl') as writer:
             aggregated_df = pd.DataFrame()
-            for idx, bar_value in enumerate(bar_data['Mapped']):
+            for bar_value in bar_data['Mapped']:
                 df_bar = sub_df[sub_df['mapped'] == bar_value].copy()
-                df_bar = df_bar.loc[:, ~df_bar.columns.duplicated()]
+                df_bar.columns = df_bar.columns.str.strip().str.lower()
+
                 if 'datetouse' in df_bar.columns:
                     df_bar['datetouse_display'] = pd.to_datetime(
                         df_bar['datetouse'], errors='coerce'
                     ).dt.strftime("%d/%m/%Y")
                     df_bar.loc[df_bar['datetouse'].isna(), 'datetouse_display'] = "Unplanned"
 
-                # Merge Material Code for Excel
-                if 'miscelaneous' in locals() and 'column_b' in miscelaneous.columns and 'column_k' in miscelaneous.columns:
-                    miscel_subset = miscelaneous[['column_b', 'column_k']].rename(
-                        columns={'column_b': 'item', 'column_k': 'material code'}
-                    )
-                    if 'mapped' in df_bar.columns:
-                        df_bar = df_bar.merge(
-                            miscel_subset,
-                            how='left',
-                            left_on='mapped',
-                            right_on='item'
-                        )
-                        if 'item' in df_bar.columns:
-                            df_bar = df_bar.drop(columns=['item'])
+                # Map Material Code
+                if material_dict:
+                    df_bar['item_norm'] = df_bar['item'].astype(str).str.strip().str.lower()
+                    df_bar['material code'] = df_bar['item_norm'].map(material_dict)
+                    df_bar = df_bar.drop(columns=['item_norm'])
 
-                # Final columns for Excel
-                cols_to_include = ['mapped', 'datetouse_display'] + extra_cols
+                cols_to_include = ['mapped','datetouse_display'] + extra_cols
                 if 'material code' in df_bar.columns and 'material code' not in cols_to_include:
                     cols_to_include.append('material code')
                 cols_to_include = [c for c in cols_to_include if c in df_bar.columns]
@@ -1358,38 +1344,31 @@ for cat_name, keys, y_label in categories:
             f"📥 Download Excel (Aggregated): {cat_name} Details",
             buffer_agg,
             file_name=f"{cat_name}_Details_Aggregated.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            key=f"dl_agg_{cat_name}"
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
 
-        # Excel Export - Separate Sheets
+        # -------------------------------
+        # --- Excel Export (Separated Sheets) ---
+        # -------------------------------
         buffer_sep = BytesIO()
         with pd.ExcelWriter(buffer_sep, engine='openpyxl') as writer:
-            for idx, bar_value in enumerate(bar_data['Mapped']):
+            for bar_value in bar_data['Mapped']:
                 df_bar = sub_df[sub_df['mapped'] == bar_value].copy()
-                df_bar = df_bar.loc[:, ~df_bar.columns.duplicated()]
+                df_bar.columns = df_bar.columns.str.strip().str.lower()
+
                 if 'datetouse' in df_bar.columns:
                     df_bar['datetouse_display'] = pd.to_datetime(
                         df_bar['datetouse'], errors='coerce'
                     ).dt.strftime("%d/%m/%Y")
                     df_bar.loc[df_bar['datetouse'].isna(), 'datetouse_display'] = "Unplanned"
 
-                # Merge Material Code
-                if 'miscelaneous' in locals() and 'column_b' in miscelaneous.columns and 'column_k' in miscelaneous.columns:
-                    miscel_subset = miscelaneous[['column_b', 'column_k']].rename(
-                        columns={'column_b': 'item', 'column_k': 'material code'}
-                    )
-                    if 'mapped' in df_bar.columns:
-                        df_bar = df_bar.merge(
-                            miscel_subset,
-                            how='left',
-                            left_on='mapped',
-                            right_on='item'
-                        )
-                        if 'item' in df_bar.columns:
-                            df_bar = df_bar.drop(columns=['item'])
+                # Map Material Code
+                if material_dict:
+                    df_bar['item_norm'] = df_bar['item'].astype(str).str.strip().str.lower()
+                    df_bar['material code'] = df_bar['item_norm'].map(material_dict)
+                    df_bar = df_bar.drop(columns=['item_norm'])
 
-                cols_to_include = ['mapped', 'datetouse_display'] + extra_cols
+                cols_to_include = ['mapped','datetouse_display'] + extra_cols
                 if 'material code' in df_bar.columns and 'material code' not in cols_to_include:
                     cols_to_include.append('material code')
                 cols_to_include = [c for c in cols_to_include if c in df_bar.columns]
@@ -1403,6 +1382,5 @@ for cat_name, keys, y_label in categories:
             f"📥 Download Excel (Separated): {cat_name} Details",
             buffer_sep,
             file_name=f"{cat_name}_Details_Separated.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            key=f"dl_sep_{cat_name}"
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
