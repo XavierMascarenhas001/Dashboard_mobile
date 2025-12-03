@@ -682,7 +682,7 @@ if resume_file is not None:
     resume_df.columns = resume_df.columns.str.strip().str.lower()  # normalize columns
 
 # --- Load Miscellaneous Parquet file ---
-misc_file = r"Miscelaneous.parquet"
+misc_file = r"miscelaneous.parquet"
 if misc_file is not None:
     try:
         misc_df = pd.read_parquet(misc_file)
