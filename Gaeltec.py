@@ -1268,15 +1268,15 @@ for cat_name, keys, y_label in categories:
         # -------------------------------
         # --- Merge Material Code from Miscelaneous ---
         # -------------------------------
-        if 'miscelaneous' in locals() and 'A' in miscelaneous.columns and 'K' in miscelaneous.columns:
+        if 'miscelaneous' in locals() and 'column_b' in miscelaneous.columns and 'column_k' in miscelaneous.columns:
             # Make sure columns are stripped & lowercase to avoid mismatch
-            miscelaneous_cols = miscelaneous.columns.str.strip().str.lower()
-            miscelaneous.columns = miscelaneous_cols
+            miscelaneous.columns = miscelaneous.columns.str.strip().str.lower()
+            selected_rows.columns = selected_rows.columns.str.strip().str.lower()
 
-            # Column names in selected_rows (CF_aggregated) and miscelaneous
-            cf_key_col = 'c'  # column C in CF_aggregated
-            miscel_key_col = 'a'  # column A in miscelaneous
-            material_col = 'k'   # column K in miscelaneous
+            # Correct key columns
+            cf_key_col = 'item'        # column C in CF_aggregated
+            miscel_key_col = 'column_b'  # column B in miscelaneous
+            material_col = 'column_k'    # column K in miscelaneous
 
             if cf_key_col in selected_rows.columns and miscel_key_col in miscelaneous.columns:
                 selected_rows = selected_rows.merge(
