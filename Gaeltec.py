@@ -1310,6 +1310,9 @@ for cat_name, keys, y_label in categories:
         if 'material code' in selected_rows.columns and 'material code' not in display_cols:
             display_cols.append('material code')
 
+        # ⚡ Safely filter to only columns that exist in the dataframe
+        display_cols = [c for c in display_cols if c in selected_rows.columns]
+
         # -------------------------------
         # --- Display table ---
         # -------------------------------
