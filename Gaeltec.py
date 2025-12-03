@@ -67,6 +67,37 @@ def get_scottish_weather(api_key, location="Ayrshire"):
         st.error(f"Error fetching weather data: {e}")
         return None
 
+@cache_data(ttl=1800)  # Cache for 30 minutes
+def get_weather_forecast(api_key, location="Ayrshire"):
+    """
+    Get 5-day forecast for Scottish locations
+    """
+    locations = {
+        "Ayrshire": {"lat": 55.458, "lon": -4.629},
+        "Lanarkshire": {"lat": 55.676, "lon": -3.785}
+    }
+    
+    if location in locations:
+        coords = locations[location]
+    else:
+        coords = locations["Ayrshire"]
+    
+    base_url = "http://api.openweathermap.org/data/2.5/forecast"
+    params = {
+        'lat': coords["lat"],
+        'lon': coords["lon"],
+        'appid': api_key,
+        'units': 'metric'
+    }
+    
+    try:
+        response = requests.get(base_url, params=params)
+        response.raise_for_status()
+        return response.json()
+    except Exception as e:
+        st.error(f"Forecast API error: {e}")
+        return None
+
 # --- MAPPINGS ---
 
 # --- Project Manager Mapping ---
@@ -650,6 +681,15 @@ if resume_file is not None:
     resume_df = pd.read_parquet(resume_file)
     resume_df.columns = resume_df.columns.str.strip().str.lower()  # normalize columns
 
+# --- Load Miscellaneous Parquet file ---
+misc_file = r"Miscelaneous.parquet"
+if misc_file is not None:
+    try:
+        misc_df = pd.read_parquet(misc_file)
+        misc_df.columns = misc_df.columns.str.strip().str.lower()  # normalize columns
+    except Exception as e:
+        st.warning(f"Could not load Miscellaneous parquet: {e}")
+
     # -------------------------------
     # --- Sidebar Filters ---
     # -------------------------------
@@ -734,107 +774,102 @@ if resume_file is not None:
     money_logo.save(buffered, format="PNG")
     money_logo_base64 = base64.b64encode(buffered.getvalue()).decode()
 
-    # Display Total & Variation
-    col_top_left, col_top_right = st.columns([1, 1])
-    with col_top_left:
+    # Display Total & Variation (Centered)
+    st.markdown("<h3 style='text-align:center; color:white;'>Revenue</h3>", unsafe_allow_html=True)
+    try:
         st.markdown(
             f"""
-            <div style='display:flex; flex-direction:column; gap:4px;'>
-                <div style='display:flex; align-items:center; gap:10px;'>
-                    <h2 style='color:#32CD32; margin:0; font-size:36px;'><b>Total:</b> {formatted_total}</h2>
-                    <img src='data:image/png;base64,{money_logo_base64}' width='40' height='40'/>
+            <div style='display:flex; justify-content:center;'>
+                <div style='display:flex; flex-direction:column; gap:4px;'>
+                    <div style='display:flex; align-items:center; gap:10px;'>
+                        <h2 style='color:#32CD32; margin:0; font-size:36px;'><b>Total:</b> {formatted_total}</h2>
+                        <img src='data:image/png;base64,{money_logo_base64}' width='40' height='40'/>
+                    </div>
+                    <div style='display:flex; align-items:center; gap:8px;'>
+                        <h2 style='color:#32CD32; font-size:25px; margin:0;'><b>Variation:</b> {formatted_variation}</h2>
+                        <img src='data:image/png;base64,{money_logo_base64}' width='28' height='28'/>
+                    </div>
+                    <p style='text-align:center; font-size:14px; margin-top:4px;'>
+                        ({date_range_str}, Shires: {selected_shire}, Projects: {selected_project}, PMs: {selected_pm})
+                    </p>
                 </div>
-                <div style='display:flex; align-items:center; gap:8px;'>
-                    <h2 style='color:#32CD32; font-size:25px; margin:0;'><b>Variation:</b> {formatted_variation}</h2>
-                    <img src='data:image/png;base64,{money_logo_base64}' width='28' height='28'/>
-                </div>
-                <p style='text-align:left; font-size:14px; margin-top:4px;'>
-                    ({date_range_str}, Shires: {selected_shire}, Projects: {selected_project}, PMs: {selected_pm})
-                </p>
             </div>
             """,
             unsafe_allow_html=True
         )
+    except Exception as e:
+        st.warning(f"Could not display Total & Variation: {e}")
+    # -------------------------------
+    # --- Revenue Chart (Full Width) ---
+    # -------------------------------
+    st.markdown("<h3 style='text-align:center; color:white;'>Revenue</h3>", unsafe_allow_html=True)
+    try:
+        if 'filtered_df' in locals() and not filtered_df.empty and 'total' in filtered_df.columns:
 
-        with col_top_right:
-            st.markdown("<h3 style='text-align:center; color:white;'>Revenue</h3>", unsafe_allow_html=True)
-            # --- Top-right Chart: Revenue Over Time ---
-            try:
-                # Use the filtered_df that has been through all the sidebar filters
-                if 'filtered_df' in locals() and not filtered_df.empty and 'total' in filtered_df.columns:
-                    
-                    # Prepare data for the chart - exclude blanks and dates before 2000
-                    chart_df = filtered_df[filtered_df['datetouse_dt'].notna()].copy()
-                    chart_df = chart_df[chart_df['datetouse_dt'] >= '2000-01-01']
-                    
-                    # Convert total column to numeric, handling errors
-                    chart_df['total'] = pd.to_numeric(chart_df['total'], errors='coerce')
-                    
-                    # Remove any rows where total conversion failed
-                    chart_df = chart_df[chart_df['total'].notna()]
-                    
-                    if not chart_df.empty:
-                        # Group by date and SUM the total column (not count projects)
-                        revenue_by_date = chart_df.groupby('datetouse_dt')['total'].sum().reset_index()
-                        revenue_by_date = revenue_by_date.sort_values('datetouse_dt')
-                        
-                        # Format the revenue numbers for better readability
-                        revenue_by_date['total_formatted'] = revenue_by_date['total'].apply(
-                            lambda x: f"€{x:,.0f}" if x >= 1000 else f"€{x:.0f}"
-                        )
-                        
-                        # Create the line chart
-                        fig_revenue = px.line(
-                            revenue_by_date, 
-                            x='datetouse_dt', 
-                            y='total',
-                            title="Daily Revenue",
-                            labels={'datetouse_dt': 'Date', 'total': 'Revenue (€)'}
-                        )
-                        fig_revenue.update_traces(
-                            mode='lines+markers',
-                            line=dict(width=3, color='#32CD32'),
-                            marker=dict(size=6, color='#32CD32'),
-                            hovertemplate='<b>Date: %{x}</b><br>Revenue: €%{y:,.0f}<extra></extra>'
-                        )
-                        fig_revenue.update_layout(
-                            xaxis=dict(
-                                tickformat="%b %Y",
-                                tickangle=45,
-                                gridcolor='rgba(128,128,128,0.2)'
-                            ),
-                            yaxis=dict(
-                                title='Revenue (€)',
-                                tickformat=",.0f",
-                                gridcolor='rgba(128,128,128,0.2)'
-                            ),
-                            paper_bgcolor='rgba(0,0,0,0)',
-                            plot_bgcolor='rgba(0,0,0,0)',
-                            font=dict(color='white'),
-                            title_font_size=16,
-                            hovermode='x unified'
-                        )
-                        
-                        # Display in top-right column
-                        st.plotly_chart(fig_revenue, use_container_width=True)
-                        
-                    else:
-                        # Show info if no valid dates after filtering
-                        st.info("No projects with dates since 2000 for selected filters.")
-                            
-                else:
-                    st.info("No data available for the selected filters.")
+            chart_df = filtered_df[filtered_df['datetouse_dt'].notna()].copy()
+            chart_df = chart_df[chart_df['datetouse_dt'] >= '2000-01-01']
+            chart_df['total'] = pd.to_numeric(chart_df['total'], errors='coerce')
+            chart_df = chart_df[chart_df['total'].notna()]
 
-            except Exception as e:
-                st.warning(f"Could not generate revenue chart: {e}")
+            if not chart_df.empty:
+                revenue_by_date = chart_df.groupby('datetouse_dt')['total'].sum().reset_index()
+                revenue_by_date = revenue_by_date.sort_values('datetouse_dt')
+                revenue_by_date['total_formatted'] = revenue_by_date['total'].apply(
+                    lambda x: f"£{x:,.0f}" if x >= 1000 else f"€{x:.0f}"
+                )
 
-    # Display Total & Variation
+                fig_revenue = px.line(
+                    revenue_by_date,
+                    x='datetouse_dt',
+                    y='total',
+                    title="Daily Revenue",
+                    labels={'datetouse_dt': 'Date', 'total': 'Revenue (£)'}
+                )
+                fig_revenue.update_traces(
+                    mode='lines+markers',
+                    line=dict(width=3, color='#32CD32'),
+                    marker=dict(size=6, color='#32CD32'),
+                    hovertemplate='<b>Date: %{x}</b><br>Revenue: €%{y:,.0f}<extra></extra>'
+                )
+                fig_revenue.update_layout(
+                    height=600,  # taller chart
+                    xaxis=dict(
+                        tickformatstops=[
+                            dict(dtickrange=[None, 1000*60*60*24*30], value="%d %b %Y"),
+                            dict(dtickrange=[1000*60*60*24*30, None], value="%b %Y")
+                        ],
+                        tickangle=45,
+                        gridcolor='rgba(128,128,128,0.2)',
+                        rangeslider=dict(visible=True),
+                        type='date'
+                    ),
+                    yaxis=dict(
+                        title='Revenue (€)',
+                        tickformat=",.0f",
+                        gridcolor='rgba(128,128,128,0.2)',
+                        autorange=True,
+                        fixedrange=False  # <-- allow dynamic scaling on zoom
+                    ),
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    font=dict(color='white'),
+                    title_font_size=16,
+                    hovermode='x unified'
+                )
+
+                st.plotly_chart(fig_revenue, use_container_width=True)
+            else:
+                st.info("No projects with dates since 2000 for selected filters.")
+        else:
+            st.info("No data available for the selected filters.")
+
+    except Exception as e:
+        st.warning(f"Could not generate revenue chart: {e}")
+                
+    # Display Project and completion
     col_top_left, col_top_right = st.columns([1, 1])
+    # Project Completion
     with col_top_left:
-        st.markdown("<h3 style='text-align:center; color:white;'>Works Complete</h3>", unsafe_allow_html=True)
-        
-
-    with col_top_right:
         st.markdown("<h3 style='text-align:center; color:white;'>Projects Distribution</h3>", unsafe_allow_html=True)
         # --- Top-right Pie Chart: Projects Distribution ---
         try:
@@ -884,9 +919,8 @@ if resume_file is not None:
         except Exception as e:
             st.warning(f"Could not generate projects pie chart: {e}")
 
-    # Display Total & Variation
-    col_top_left, col_top_right = st.columns([1, 1])
-    with col_top_left:
+    # Works total
+    with col_top_right:
         # Left side: Projects & Segments Overview and Works Complete pie chart
         col_left_top, col_left_bottom = st.columns([1, 1])
         
@@ -916,66 +950,58 @@ if resume_file is not None:
             else:
                 st.info("Project or Segment Code columns not found in the data.")
         
-        with col_top_right:
-            st.markdown("<h3 style='text-align:center; color:white;'>Works Complete</h3>", unsafe_allow_html=True)
+            
             # --- Pie Chart: % Complete ---
-            try:
-                # Ensure resume_df exists
-                if 'resume_df' in locals():
+# -------------------------------
+    # --- Works Complete Pie Chart ---
+    # -------------------------------
+    st.markdown("<h3 style='text-align:center; color:white;'>Works Complete</h3>", unsafe_allow_html=True)
+    try:
+        if 'resume_df' in locals():
+            filtered_segments = filtered_df['segment'].dropna().astype(str).str.strip().str.lower().unique()
+            resume_df['section'] = resume_df['section'].dropna().astype(str).str.strip().str.lower()
 
-                    # Normalize both columns to lowercase strings without extra spaces
-                    filtered_segments = filtered_df['segment'].dropna().astype(str).str.strip().str.lower().unique()
-                    resume_df['section'] = resume_df['section'].dropna().astype(str).str.strip().str.lower()
+            if {'section', '%complete'}.issubset(resume_df.columns):
+                resume_filtered = resume_df[resume_df['section'].isin(filtered_segments)]
 
-                    # Check if necessary columns exist in resume_df
-                    if {'section', '%complete'}.issubset(resume_df.columns):
+                if not resume_filtered.empty:
+                    avg_complete = resume_filtered['%complete'].mean()
+                    avg_complete = min(max(avg_complete, 0), 100)
 
-                        # Filter resume to only include relevant sections
-                        resume_filtered = resume_df[resume_df['section'].isin(filtered_segments)]
+                    pie_data = pd.DataFrame({
+                        'Status': ['Completed', 'Done or Remaining'],
+                        'Value': [avg_complete, 100 - avg_complete]
+                    })
 
-                        if not resume_filtered.empty:
-                            avg_complete = resume_filtered['%complete'].mean()
-                            avg_complete = min(max(avg_complete, 0), 100)  # clamp 0-100
+                    fig_pie = px.pie(
+                        pie_data,
+                        names='Status',
+                        values='Value',
+                        color='Status',
+                        color_discrete_map={'Completed': 'green', 'Done or Remaining': 'red'},
+                        hole=0.6
+                    )
+                    fig_pie.update_traces(
+                        textinfo='percent+label',
+                        textfont_size=20
+                    )
+                    fig_pie.update_layout(
+                        title_text="",
+                        title_font_size=20,
+                        font=dict(color='white'),
+                        paper_bgcolor='rgba(0,0,0,0)',
+                        plot_bgcolor='rgba(0,0,0,0)',
+                        showlegend=True,
+                        legend=dict(font=dict(color='white'))
+                    )
 
-                            # Pie chart data
-                            pie_data = pd.DataFrame({
-                                'Status': ['Completed', 'Done or Remaining'],
-                                'Value': [avg_complete, 100 - avg_complete]
-                            })
+                    st.plotly_chart(fig_pie, use_container_width=True)
+                else:
+                    st.info("No matching sections found for the selected filters to generate % completion chart.")
 
-                            # Plot pie chart
-                            fig_pie = px.pie(
-                                pie_data,
-                                names='Status',
-                                values='Value',
-                                color='Status',
-                                color_discrete_map={'Completed': 'green', 'Done or Remaining': 'red'},
-                                hole=0.6
-                            )
-                            fig_pie.update_traces(
-                                textinfo='percent+label',
-                                textfont_size=20
-                            )
-                            fig_pie.update_layout(
-                                title_text="",
-                                title_font_size=20,
-                                font=dict(color='white'),
-                                paper_bgcolor='rgba(0,0,0,0)',
-                                plot_bgcolor='rgba(0,0,0,0)',
-                                showlegend=True,
-                                legend=dict(font=dict(color='white'))
-                            )
-
-                            # Display pie chart
-                            st.plotly_chart(fig_pie, use_container_width=True)
-
-                        else:
-                            st.info("No matching sections found for the selected filters to generate % completion chart.")
-
-            except Exception as e:
-                st.warning(f"Could not generate % Complete pie chart: {e}")
-
-
+    except Exception as e:
+        st.warning(f"Could not generate % Complete pie chart: {e}")
+        
     # -------------------------------
     # --- Map Section ---
     # -------------------------------
@@ -1052,11 +1078,12 @@ if resume_file is not None:
 
 
     with col_desc:
-        st.markdown("<h3 style='color:white;'>Weather </h3>", unsafe_allow_html=True)       
+        st.markdown("<h3 style='color:white;'>Weather</h3>", unsafe_allow_html=True)
+        
         # --- Scottish Weather Widget ---
         try:
             # Get API key from secrets
-            api_key = st.secrets.get("WEATHER_API_KEY")
+            api_key = st.secrets.get("d4d09fcf1373f72c30b970fb20d51fd9")
             
             if not api_key:
                 st.info("Weather API key not configured")
@@ -1106,6 +1133,7 @@ if resume_file is not None:
                     
         except Exception as e:
             st.warning(f"Could not load weather information: {e}")
+
 
 # -------------------------------
 # --- Mapping Bar Charts + Drill-down + Excel Export ---
@@ -1284,9 +1312,10 @@ if resume_file is not None:
             else:
                 st.info("No records found for this selection")
                 
-            # Excel Export
-            buffer = BytesIO()
-            with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
+            # Excel Export - Aggregated
+            buffer_agg = BytesIO()
+            with pd.ExcelWriter(buffer_agg, engine='openpyxl') as writer:
+                aggregated_df = pd.DataFrame()
                 for bar_value in bar_data['Mapped']:
                     df_bar = sub_df[sub_df['mapped'] == bar_value].copy()
                     df_bar = df_bar.loc[:, ~df_bar.columns.duplicated()]
@@ -1299,14 +1328,42 @@ if resume_file is not None:
                     cols_to_include = ['mapped', 'datetouse_display'] + extra_cols
                     cols_to_include = [c for c in cols_to_include if c in df_bar.columns]
                     df_bar = df_bar[cols_to_include]
-    
+
+                    aggregated_df = pd.concat([aggregated_df, df_bar], ignore_index=True)
+
+                aggregated_df.to_excel(writer, sheet_name='Aggregated', index=False)
+
+            buffer_agg.seek(0)
+            st.download_button(
+                f"📥 Download Excel (Aggregated): {cat_name} Details",
+                buffer_agg,
+                file_name=f"{cat_name}_Details_Aggregated.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
+
+            # Excel Export - Separate Sheets
+            buffer_sep = BytesIO()
+            with pd.ExcelWriter(buffer_sep, engine='openpyxl') as writer:
+                for bar_value in bar_data['Mapped']:
+                    df_bar = sub_df[sub_df['mapped'] == bar_value].copy()
+                    df_bar = df_bar.loc[:, ~df_bar.columns.duplicated()]
+                    if 'datetouse' in df_bar.columns:
+                        df_bar['datetouse_display'] = pd.to_datetime(
+                            df_bar['datetouse'], errors='coerce'
+                        ).dt.strftime("%d/%m/%Y")
+                        df_bar.loc[df_bar['datetouse'].isna(), 'datetouse_display'] = "Unplanned"
+
+                    cols_to_include = ['mapped', 'datetouse_display'] + extra_cols
+                    cols_to_include = [c for c in cols_to_include if c in df_bar.columns]
+                    df_bar = df_bar[cols_to_include]
+
                     sheet_name = sanitize_sheet_name(bar_value)
                     df_bar.to_excel(writer, sheet_name=sheet_name, index=False)
-    
-            buffer.seek(0)
+
+            buffer_sep.seek(0)
             st.download_button(
-                f"📥 Download Excel: {cat_name} Details",
-                buffer,
-                file_name=f"{cat_name}_Details.xlsx",
+                f"📥 Download Excel (Separated): {cat_name} Details",
+                buffer_sep,
+                file_name=f"{cat_name}_Details_Separated.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
