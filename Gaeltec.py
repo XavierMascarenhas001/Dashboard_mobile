@@ -1244,6 +1244,64 @@ for cat_name, keys, y_label in categories:
     # -------------------------------
     # --- Drill-down ---
     # -------------------------------
+# -------------------------------
+# --- Drill-down and Excel Export ---
+# -------------------------------
+
+# Loop over categories already defined earlier
+for cat_name, keys, y_label in categories:
+
+    # Filter the data for this category
+    pattern = '|'.join([re.escape(k) for k in keys.keys()])
+    mask = filtered_df['item'].astype(str).str.contains(pattern, case=False, na=False)
+    sub_df = filtered_df[mask].copy()
+
+    if sub_df.empty:
+        st.info(f"No data found for {cat_name}")
+        continue
+
+    # Aggregate qsub or counts
+    if 'qsub' in sub_df.columns:
+        sub_df['qsub_clean'] = pd.to_numeric(
+            sub_df['qsub'].astype(str).str.replace(" ", "").str.replace(",", ".", regex=False),
+            errors='coerce'
+        )
+        bar_data = sub_df.groupby('mapped')['qsub_clean'].sum().reset_index()
+        bar_data.columns = ['Mapped', 'Total']
+    else:
+        bar_data = sub_df['mapped'].value_counts().reset_index()
+        bar_data.columns = ['Mapped', 'Total']
+
+    # Adjust for units
+    if cat_name == "Conductors_2":
+        bar_data['Total'] = bar_data['Total'] / 1000
+    y_axis_label = y_label
+    if cat_name in ["Conductors", "Conductors_2"] and convert_to_miles:
+        bar_data['Total'] = bar_data['Total'] * 0.621371
+        y_axis_label = "Length (Miles)"
+
+    # Display bar chart
+    st.subheader(f"🔹 {cat_name} — Total: {bar_data['Total'].sum():,.2f}")
+    fig = go.Figure(data=[
+        go.Bar(
+            x=bar_data['Mapped'].astype(str).tolist(),
+            y=bar_data['Total'].astype(float).tolist(),
+            text=bar_data['Total'].astype(float).tolist(),
+            texttemplate='%{y:,.1f}',
+            textposition='outside'
+        )
+    ])
+    fig.update_layout(
+        title=f"{cat_name} Overview",
+        xaxis_title="Mapping",
+        yaxis_title=y_axis_label,
+        plot_bgcolor='rgba(0,0,0,0)',
+        paper_bgcolor='rgba(0,0,0,0)',
+        yaxis=dict(gridcolor='rgba(255,255,255,0.3)')
+    )
+    st.plotly_chart(fig, use_container_width=True, height=500)
+
+    # Drill-down buttons
     with st.expander("🔍 Click to explore more information", expanded=False):
         st.subheader("Select Mapping to Drill-down:")
         cols = st.columns(3)
@@ -1255,6 +1313,7 @@ for cat_name, keys, y_label in categories:
                     st.session_state[f"selected_{cat_name}"] = mapping_value
                     st.rerun()
 
+    # Drill-down selection
     selected_mapping = st.session_state.get(f"selected_{cat_name}")
     if selected_mapping:
         st.subheader(f"Details for: **{selected_mapping}**")
@@ -1267,36 +1326,27 @@ for cat_name, keys, y_label in categories:
         selected_rows = selected_rows.loc[:, ~selected_rows.columns.duplicated()]
 
         # -------------------------------
-        # --- Merge Material Code ---
+        # --- Merge Material Code from miscelaneous.parquet ---
         # -------------------------------
-        # --- Troubleshoot: Columns Check ---
-        st.subheader("🔍 Troubleshooting Columns")
-
-        # CF_aggregated columns
-        st.write("CF_aggregated columns:", filtered_df.columns.tolist())
-
-        if 'miscelaneous' in locals():
-            st.write("Miscelaneous columns:", miscelaneous.columns.tolist())
-
-           # Normalize columns
-            filtered_df.columns = filtered_df.columns.str.strip().str.lower()
+        if 'miscelaneous' in locals() and 'column_b' in miscelaneous.columns and 'column_k' in miscelaneous.columns:
             miscelaneous.columns = miscelaneous.columns.str.strip().str.lower()
-
-            # Ensure keys are strings and stripped
-            filtered_df['item'] = filtered_df['item'].astype(str).str.strip().str.lower()
+            selected_rows['item'] = selected_rows['item'].astype(str).str.strip().str.lower()
             miscelaneous['column_b'] = miscelaneous['column_b'].astype(str).str.strip().str.lower()
             miscelaneous['column_k'] = miscelaneous['column_k'].astype(str).str.strip()
 
-            # Check for duplicate keys in miscelaneous
-            dup_keys = miscelaneous['column_b'][miscelaneous['column_b'].duplicated()]
-            st.write("Duplicate keys in miscelaneous['column_b']:", dup_keys.tolist())
+            # Remove duplicates in miscelaneous
+            miscel_unique = miscelaneous.drop_duplicates(subset=['column_b'])
 
-            # Find which CF_aggregated items do NOT exist in miscelaneous
-            missing_keys = set(filtered_df['item'].unique()) - set(miscelaneous['column_b'].unique())
-            st.write("Keys in CF_aggregated not found in miscelaneous:", missing_keys)
+            # Merge Material Code
+            selected_rows = selected_rows.merge(
+                miscel_unique[['column_b', 'column_k']].rename(columns={'column_b': 'item', 'column_k': 'material code'}),
+                left_on='item',
+                right_on='item',
+                how='left'
+            )
 
         # -------------------------------
-        # --- Display Table ---
+        # --- Display & Extra Columns ---
         # -------------------------------
         if 'datetouse' in selected_rows.columns:
             selected_rows['datetouse_display'] = pd.to_datetime(
@@ -1304,16 +1354,21 @@ for cat_name, keys, y_label in categories:
             ).dt.strftime("%d/%m/%Y")
             selected_rows.loc[selected_rows['datetouse'].isna(), 'datetouse_display'] = "Unplanned"
 
-        extra_cols = ['pole','qsub','poling team','team_name', 'projectmanager', 'project', 'shire', 'segmentdesc','segmentcode', 'sourcefile']
-        selected_rows = selected_rows.rename(columns={"poling team":"code","team_name":"team lider"})
-        extra_cols = [c if c!="poling team" else "code" for c in extra_cols]
-        extra_cols = [c if c!="team_name" else "team lider" for c in extra_cols]
+        extra_cols = ['pole','qsub','poling team','team_name','projectmanager','project','shire','segmentdesc','segmentcode','sourcefile']
 
-        display_cols = ['mapped','datetouse_display'] + extra_cols
+        selected_rows = selected_rows.rename(columns={
+            "poling team": "code",
+            "team_name": "team lider"
+        })
+        extra_cols = [c if c != "poling team" else "code" for c in extra_cols]
+        extra_cols = [c if c != "team_name" else "team lider" for c in extra_cols]
+
+        display_cols = ['mapped', 'datetouse_display'] + extra_cols
         if 'material code' in selected_rows.columns and 'material code' not in display_cols:
             display_cols.append('material code')
         display_cols = [c for c in display_cols if c in selected_rows.columns]
 
+        # Display dataframe
         if not selected_rows.empty:
             st.dataframe(selected_rows[display_cols], use_container_width=True)
             st.write(f"**Total records:** {len(selected_rows)}")
@@ -1322,27 +1377,31 @@ for cat_name, keys, y_label in categories:
         else:
             st.info("No records found for this selection")
 
-        # Excel Export - Aggregated
+        # -------------------------------
+        # --- Excel Export (Aggregated + Separated) ---
+        # -------------------------------
         buffer_agg = BytesIO()
         with pd.ExcelWriter(buffer_agg, engine='openpyxl') as writer:
             aggregated_df = pd.DataFrame()
             for bar_value in bar_data['Mapped']:
                 df_bar = sub_df[sub_df['mapped'] == bar_value].copy()
+                df_bar.columns = df_bar.columns.str.strip().str.lower()
                 df_bar = df_bar.loc[:, ~df_bar.columns.duplicated()]
-                if 'datetouse' in df_bar.columns:
-                    df_bar['datetouse_display'] = pd.to_datetime(
-                        df_bar['datetouse'], errors='coerce'
-                    ).dt.strftime("%d/%m/%Y")
-                    df_bar.loc[df_bar['datetouse'].isna(), 'datetouse_display'] = "Unplanned"
 
-                # Merge Material Code
+                # Merge Material Code for Excel too
                 if 'miscelaneous' in locals() and 'column_b' in miscelaneous.columns and 'column_k' in miscelaneous.columns:
-                    miscel_subset = miscelaneous[['column_b','column_k']].rename(columns={'column_b':'item','column_k':'material code'})
-                    if 'mapped' in df_bar.columns:
-                        df_bar = df_bar.merge(miscel_subset, how='left', left_on='mapped', right_on='item')
+                    miscel_unique = miscelaneous.drop_duplicates(subset=['column_b'])
+                    df_bar['item'] = df_bar['item'].astype(str).str.strip().str.lower()
+                    df_bar = df_bar.merge(
+                        miscel_unique[['column_b', 'column_k']].rename(columns={'column_b': 'item', 'column_k': 'material code'}),
+                        left_on='item',
+                        right_on='item',
+                        how='left'
+                    )
                     if 'item' in df_bar.columns:
                         df_bar = df_bar.drop(columns=['item'])
 
+                # Add extra columns
                 cols_to_include = ['mapped', 'datetouse_display'] + extra_cols
                 if 'material code' in df_bar.columns and 'material code' not in cols_to_include:
                     cols_to_include.append('material code')
@@ -1361,25 +1420,27 @@ for cat_name, keys, y_label in categories:
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
 
-        # Excel Export - Separate Sheets
         buffer_sep = BytesIO()
         with pd.ExcelWriter(buffer_sep, engine='openpyxl') as writer:
             for bar_value in bar_data['Mapped']:
                 df_bar = sub_df[sub_df['mapped'] == bar_value].copy()
+                df_bar.columns = df_bar.columns.str.strip().str.lower()
                 df_bar = df_bar.loc[:, ~df_bar.columns.duplicated()]
-                if 'datetouse' in df_bar.columns:
-                    df_bar['datetouse_display'] = pd.to_datetime(
-                        df_bar['datetouse'], errors='coerce'
-                    ).dt.strftime("%d/%m/%Y")
-                    df_bar.loc[df_bar['datetouse'].isna(), 'datetouse_display'] = "Unplanned"
 
                 # Merge Material Code
                 if 'miscelaneous' in locals() and 'column_b' in miscelaneous.columns and 'column_k' in miscelaneous.columns:
-                    miscel_subset = miscelaneous[['column_b','column_k']].rename(columns={'column_b':'c','column_k':'material code'})
-                    df_bar = df_bar.merge(miscel_subset, how='left', left_on='mapped', right_on='c')
-                    if 'c' in df_bar.columns:
-                        df_bar = df_bar.drop(columns=['c'])
+                    miscel_unique = miscelaneous.drop_duplicates(subset=['column_b'])
+                    df_bar['item'] = df_bar['item'].astype(str).str.strip().str.lower()
+                    df_bar = df_bar.merge(
+                        miscel_unique[['column_b', 'column_k']].rename(columns={'column_b': 'item', 'column_k': 'material code'}),
+                        left_on='item',
+                        right_on='item',
+                        how='left'
+                    )
+                    if 'item' in df_bar.columns:
+                        df_bar = df_bar.drop(columns=['item'])
 
+                # Select display columns
                 cols_to_include = ['mapped', 'datetouse_display'] + extra_cols
                 if 'material code' in df_bar.columns and 'material code' not in cols_to_include:
                     cols_to_include.append('material code')
