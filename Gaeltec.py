@@ -1001,25 +1001,33 @@ if misc_file is not None:
 
 
 
-# -------------------------------
+    # -------------------------------
     # --- Miscelaneous ---
     # -------------------------------
-# -------------------------------
-    st.write("Current working directory:", os.getcwd())
-    st.write("Files in repo:", os.listdir())
+    # -------------------------------
+    # Normalize column names
+    misc_df.columns = misc_df.columns.str.strip().str.lower()
 
-    # Test if misc_file exists
-    if os.path.exists("miscelaneous.parquet"):
-        st.success("Miscellaneous file exists!")
+    st.subheader("🔍 Miscellaneous Parquet Preview")
+
+    # Show column names
+    st.write("Columns in miscelaneous.parquet:", misc_df.columns.tolist())
+
+    # Show first 50 rows
+    st.dataframe(misc_df.head(50), use_container_width=True)
+
+    # Optional: show sample of material dictionary
+    if 'column_b' in misc_df.columns and 'column_k' in misc_df.columns:
+       misc_df['column_b'] = misc_df['column_b'].astype(str).str.strip().str.lower()
+        misc_df['column_k'] = misc_df['column_k'].astype(str).str.strip()
+    
+        material_dict = dict(zip(misc_df['column_b'], misc_df['column_k']))
+    
+        st.subheader(f"🔑 Material Dictionary Preview ({len(material_dict)} entries)")
+        material_preview_df = pd.DataFrame(list(material_dict.items()), columns=["column_b (key)", "column_k (material code)"])
+        st.dataframe(material_preview_df.head(50), use_container_width=True)
     else:
-        st.error("Miscellaneous file not found in repo!")
-
-    # Try reading
-    try:
-        misc_df = pd.read_parquet("miscelaneous.parquet")
-        st.success(f"Loaded miscelaneous.parquet with {len(misc_df)} rows")
-    except Exception as e:
-        st.error(f"Could not read miscelaneous.parquet: {e}")
+        st.warning("Columns 'column_b' and 'column_k' not found in miscelaneous.parquet")
         
         
     # -------------------------------
