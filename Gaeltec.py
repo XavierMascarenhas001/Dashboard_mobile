@@ -722,17 +722,6 @@ else:
     st.warning("⚠️ Miscelaneous file not provided")
     misc_df = None
     material_dict = {}
-
-# Map Material Code using the dictionary
-if material_dict:
-    selected_rows['item_norm'] = selected_rows['item'].astype(str).str.strip().str.lower()
-    selected_rows['material code'] = selected_rows['item_norm'].map(material_dict)
-    selected_rows = selected_rows.drop(columns=['item_norm'])
-
-# Include 'material code' in display columns
-display_cols = ['mapped', 'datetouse_display'] + extra_cols
-if 'material code' in selected_rows.columns and 'material code' not in display_cols:
-    display_cols.append('material code')
     
     # -------------------------------
     # --- Sidebar Filters ---
@@ -1272,6 +1261,21 @@ for cat_name, keys, y_label in categories:
     # -------------------------------
     # --- Drill-down section ---
     # -------------------------------
+# Map Material Code using the dictionary
+    if material_dict:
+        selected_rows['item_norm'] = selected_rows['item'].astype(str).str.strip().str.lower()
+        selected_rows['material code'] = selected_rows['item_norm'].map(material_dict)
+        selected_rows = selected_rows.drop(columns=['item_norm'])
+
+    # Include 'material code' in display columns
+    display_cols = ['mapped', 'datetouse_display'] + extra_cols
+    if 'material code' in selected_rows.columns and 'material code' not in display_cols:
+        display_cols.append('material code')
+
+
+
+
+    
     with st.expander("🔍 Click to explore more information", expanded=False):
         st.subheader("Select Mapping to Drill-down:")
         cols = st.columns(3)
