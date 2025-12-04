@@ -683,46 +683,10 @@ if resume_file is not None:
 
 # --- Load Miscellaneous Parquet file ---
 misc_file = r"miscelaneous.parquet"
-misc_df = None
-
 if misc_file is not None:
-    try:
-        misc_df = pd.read_parquet(misc_file)
-        st.write("🔍 Miscellaneous parquet loaded successfully")
-        st.write("Columns detected:", misc_df.columns.tolist())
+    misc_file = pd.read_parquet(misc_file)
+    misc_file.columns = misc_file.columns.str.strip().str.lower()  # normalize columns
 
-        # Normalize column names
-        misc_df.columns = misc_df.columns.str.strip().str.lower()
-        st.write("Normalized columns:", misc_df.columns.tolist())
-
-        # Ensure required columns exist
-        if 'column_b' in misc_df.columns and 'column_k' in misc_df.columns:
-            # Normalize content
-            misc_df['column_b'] = misc_df['column_b'].astype(str).str.strip().str.lower()
-            misc_df['column_k'] = misc_df['column_k'].astype(str).str.strip()
-
-            # Build material dictionary
-            material_dict = dict(zip(misc_df['column_b'], misc_df['column_k']))
-            st.success(f"🔍 Material dictionary created with **{len(material_dict)} entries**")
-
-            # Preview dictionary
-            dict_df = pd.DataFrame(list(material_dict.items()), columns=["Column_B (key)", "Column_K (material code)"])
-            dict_df = dict_df.sort_values("Column_B (key)").reset_index(drop=True)
-            st.write("### Preview of Material Dictionary (first 50 rows):")
-            st.dataframe(dict_df.head(50), use_container_width=True)
-        else:
-            material_dict = {}
-            st.warning("❌ Miscellaneous file missing required columns 'Column_B' or 'Column_K'")
-
-    except Exception as e:
-        st.error(f"Could not load Miscellaneous parquet: {e}")
-        misc_df = None
-        material_dict = {}
-else:
-    st.warning("⚠️ Miscelaneous file not provided")
-    misc_df = None
-    material_dict = {}
-    
     # -------------------------------
     # --- Sidebar Filters ---
     # -------------------------------
@@ -1034,6 +998,56 @@ else:
 
     except Exception as e:
         st.warning(f"Could not generate % Complete pie chart: {e}")
+
+
+
+# -------------------------------
+    # --- Miscelaneous ---
+    # -------------------------------
+# -------------------------------
+    st.markdown("<h3 style='text-align:center; color:white;'>🔍 Miscellaneous Data Preview</h3>", unsafe_allow_html=True)
+
+    try:
+       if 'misc_df' in locals() and misc_df is not None:
+            st.write(f"Columns detected in miscelaneous.parquet: {misc_df.columns.tolist()}")
+
+            # Normalize column names and content
+            misc_df.columns = misc_df.columns.str.strip().str.lower()
+            if 'column_b' in misc_df.columns and 'column_k' in misc_df.columns:
+                misc_df['column_b'] = misc_df['column_b'].astype(str).str.strip().str.lower()
+                misc_df['column_k'] = misc_df['column_k'].astype(str).str.strip()
+
+                # Preview first 50 rows
+                st.write("### First 50 rows of miscelaneous.parquet:")
+                st.dataframe(misc_df.head(50), use_container_width=True)
+
+                # Optional: show a simple summary chart of Column_K counts
+                summary_df = misc_df['column_k'].value_counts().reset_index()
+                summary_df.columns = ['Material Code', 'Count']
+
+                fig = px.bar(
+                    summary_df.head(20),  # top 20 codes
+                    x='Material Code',
+                    y='Count',
+                    title="Top 20 Material Codes",
+                    text='Count'
+                )
+                fig.update_traces(textposition='outside', marker_color='#32CD32')
+                fig.update_layout(
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    font=dict(color='white'),
+                    xaxis_tickangle=45
+                )
+                st.plotly_chart(fig, use_container_width=True, height=400)
+            else:
+                st.warning("❌ Columns 'Column_B' or 'Column_K' not found in miscelaneous.parquet")
+        else:
+            st.warning("⚠️ Miscelaneous parquet not loaded or empty")
+
+    except Exception as e:
+        st.error(f"Could not preview miscelaneous.parquet: {e}")
+        
         
     # -------------------------------
     # --- Map Section ---
