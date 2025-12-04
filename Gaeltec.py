@@ -1169,12 +1169,20 @@ if 'miscelaneous' in locals() and 'column_b' in miscelaneous.columns and 'column
     # Normalize columns
     miscelaneous['column_b'] = miscelaneous['column_b'].astype(str).str.strip().str.lower()
     miscelaneous['column_k'] = miscelaneous['column_k'].astype(str).str.strip()
-    
+    st.write(f"🔍 Material dictionary created with **{len(material_dict)}** entries")
     # Build dictionary: Column_B -> Column_K
-    material_dict = dict(zip(miscelaneous['column_b'], miscelaneous['column_k']))
-    st.write(f"Material dictionary created with {len(material_dict)} entries")
+    # Convert dict to a dataframe for safe display
+    dict_df = (
+        pd.DataFrame(list(material_dict.items()), columns=["column_b (key)", "column_k (material code)"])
+        .sort_values("column_b (key)")
+        .reset_index(drop=True)
+    )
+
+    st.write("### Preview of Material Dictionary (first 50 entries):")
+    st.dataframe(dict_df.head(50), use_container_width=True)
 else:
     material_dict = {}
+    st.warning("⚠️ Miscelaneous file missing or required columns not found")
 
 # -------------------------------
 # --- Loop over categories ---
