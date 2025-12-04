@@ -1400,38 +1400,38 @@ st.subheader("🔍 Material Dictionary Debug")
 
 material_dict = {}   # default
 
-if 'miscelaneous' in locals():
+if misc_df in locals():
 
-    st.write("Miscelaneous columns detected:", miscelaneous.columns.tolist())
+    st.write("Miscelaneous columns detected:", misc_df.columns.tolist())
 
     # Ensure required columns exist
-    if 'Column_B' in miscelaneous.columns and 'Column_K' in miscelaneous.columns:
+    if 'Column_B' in misc_df.columns and 'Column_K' in misc_df.columns:
 
         # Normalize column names
-        miscelaneous.columns = miscelaneous.columns.str.strip().str.lower()
+        misc_df.columns = misc_df.columns.str.strip().str.lower()
 
         # Rename after lowering so we always use lowercase
         # column_b = key
         # column_k = value
-        if 'column_b' in miscelaneous.columns and 'column_k' in miscelaneous.columns:
+        if 'column_b' in misc_df.columns and 'column_k' in misc_df.columns:
 
             # Normalize content values
-            miscelaneous['column_b'] = (
-                miscelaneous['column_b']
+            misc_df['column_b'] = (
+                misc_df['column_b']
                 .astype(str)
                 .str.strip()
                 .str.lower()
             )
-            miscelaneous['column_k'] = (
-                miscelaneous['column_k']
+            misc_df['column_k'] = (
+                misc_df['column_k']
                 .astype(str)
                 .str.strip()
             )
 
             # Build dictionary
             material_dict = dict(zip(
-                miscelaneous['column_b'],
-                miscelaneous['column_k']
+                misc_df['column_b'],
+                misc_df['column_k']
             ))
 
             st.success(f"Material dictionary generated with **{len(material_dict)}** entries.")
