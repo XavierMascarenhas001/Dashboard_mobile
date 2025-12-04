@@ -689,7 +689,6 @@ if misc_file is not None:
         misc_df.columns = misc_df.columns.str.strip().str.lower()  # normalize columns
     except Exception as e:
         st.warning(f"Could not load Miscellaneous parquet: {e}")
-
     # -------------------------------
     # --- Sidebar Filters ---
     # -------------------------------
