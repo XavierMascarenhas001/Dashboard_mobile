@@ -1392,3 +1392,69 @@ for cat_name, keys, y_label in categories:
             file_name=f"{cat_name}_Details_Separated.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
+
+# --------------------------------------------------
+#  MATERIAL DICTIONARY GENERATION (Column_B → Column_K)
+# --------------------------------------------------
+
+st.subheader("🔍 Material Dictionary Debug")
+
+material_dict = {}   # default
+
+if 'miscelaneous' in locals():
+
+    st.write("Miscelaneous columns detected:", miscelaneous.columns.tolist())
+
+    # Ensure required columns exist
+    if 'Column_B' in miscelaneous.columns and 'Column_K' in miscelaneous.columns:
+
+        # Normalize column names
+        miscelaneous.columns = miscelaneous.columns.str.strip().str.lower()
+
+        # Rename after lowering so we always use lowercase
+        # column_b = key
+        # column_k = value
+        if 'column_b' in miscelaneous.columns and 'column_k' in miscelaneous.columns:
+
+            # Normalize content values
+            miscelaneous['column_b'] = (
+                miscelaneous['column_b']
+                .astype(str)
+                .str.strip()
+                .str.lower()
+            )
+            miscelaneous['column_k'] = (
+                miscelaneous['column_k']
+                .astype(str)
+                .str.strip()
+            )
+
+            # Build dictionary
+            material_dict = dict(zip(
+                miscelaneous['column_b'],
+                miscelaneous['column_k']
+            ))
+
+            st.success(f"Material dictionary generated with **{len(material_dict)}** entries.")
+
+            # Preview first 50 entries
+            preview_df = (
+                pd.DataFrame(
+                    list(material_dict.items()),
+                    columns=["Column_B (key)", "Column_K (material code)"]
+                )
+                .sort_values("Column_B (key)")
+                .reset_index(drop=True)
+            )
+
+            st.write("### Preview of Material Dictionary (first 50 rows):")
+            st.dataframe(preview_df.head(50), use_container_width=True)
+
+        else:
+            st.error("Columns 'column_b' and 'column_k' were not found AFTER normalization.")
+
+    else:
+        st.error("❌ miscelaneous.parquet is missing **Column_B** or **Column_K**.")
+
+else:
+    st.warning("⚠️ miscelaneous file not loaded.")
