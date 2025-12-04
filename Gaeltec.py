@@ -683,38 +683,56 @@ if resume_file is not None:
 
 # --- Load Miscellaneous Parquet file ---
 misc_file = r"miscelaneous.parquet"
+misc_df = None
+
 if misc_file is not None:
     try:
         misc_df = pd.read_parquet(misc_file)
-        misc_df.columns = misc_df.columns.str.strip().str.lower()  # normalize columns
+        st.write("🔍 Miscellaneous parquet loaded successfully")
+        st.write("Columns detected:", misc_df.columns.tolist())
+
+        # Normalize column names
+        misc_df.columns = misc_df.columns.str.strip().str.lower()
+        st.write("Normalized columns:", misc_df.columns.tolist())
+
+        # Ensure required columns exist
+        if 'column_b' in misc_df.columns and 'column_k' in misc_df.columns:
+            # Normalize content
+            misc_df['column_b'] = misc_df['column_b'].astype(str).str.strip().str.lower()
+            misc_df['column_k'] = misc_df['column_k'].astype(str).str.strip()
+
+            # Build material dictionary
+            material_dict = dict(zip(misc_df['column_b'], misc_df['column_k']))
+            st.success(f"🔍 Material dictionary created with **{len(material_dict)} entries**")
+
+            # Preview dictionary
+            dict_df = pd.DataFrame(list(material_dict.items()), columns=["Column_B (key)", "Column_K (material code)"])
+            dict_df = dict_df.sort_values("Column_B (key)").reset_index(drop=True)
+            st.write("### Preview of Material Dictionary (first 50 rows):")
+            st.dataframe(dict_df.head(50), use_container_width=True)
+        else:
+            material_dict = {}
+            st.warning("❌ Miscellaneous file missing required columns 'Column_B' or 'Column_K'")
+
     except Exception as e:
-        st.warning(f"Could not load Miscellaneous parquet: {e}")
-
-# -------------------------------
-# --- Build Material Dictionary ---
-# -------------------------------
-material_dict = {}  # default
-if 'misc_df' in locals():
-    st.write("Miscellaneous columns detected:", misc_df.columns.tolist())
-
-    if 'column_b' in misc_df.columns and 'column_k' in misc_df.columns:
-        misc_df['column_b'] = misc_df['column_b'].astype(str).str.strip().str.lower()
-        misc_df['column_k'] = misc_df['column_k'].astype(str).str.strip()
-
-        material_dict = dict(zip(misc_df['column_b'], misc_df['column_k']))
-        st.success(f"🔍 Material dictionary created with **{len(material_dict)}** entries")
-
-        # Preview first 50 entries
-        dict_df = pd.DataFrame(
-            list(material_dict.items()),
-            columns=["column_b (key)", "column_k (material code)"]
-        ).sort_values("column_b (key)").reset_index(drop=True)
-        st.write("### Preview of Material Dictionary (first 50 entries):")
-        st.dataframe(dict_df.head(50), use_container_width=True)
-    else:
-        st.warning("❌ Miscellaneous file missing required columns 'Column_B' or 'Column_K'")
+        st.error(f"Could not load Miscellaneous parquet: {e}")
+        misc_df = None
+        material_dict = {}
 else:
-    st.warning("⚠️ Miscellaneous file not loaded")
+    st.warning("⚠️ Miscelaneous file not provided")
+    misc_df = None
+    material_dict = {}
+
+# Map Material Code using the dictionary
+if material_dict:
+    selected_rows['item_norm'] = selected_rows['item'].astype(str).str.strip().str.lower()
+    selected_rows['material code'] = selected_rows['item_norm'].map(material_dict)
+    selected_rows = selected_rows.drop(columns=['item_norm'])
+
+# Include 'material code' in display columns
+display_cols = ['mapped', 'datetouse_display'] + extra_cols
+if 'material code' in selected_rows.columns and 'material code' not in display_cols:
+    display_cols.append('material code')
     
     # -------------------------------
     # --- Sidebar Filters ---
