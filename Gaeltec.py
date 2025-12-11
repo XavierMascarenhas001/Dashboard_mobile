@@ -1419,7 +1419,7 @@ if misc_df is not None:
     poles_list = poles_df_clean.values.tolist()
 
     # Display the cleaned list in the dashboard
-    st.write("Work instructions")
+    st.write("Pole, Work Instructions, Comment, and Team Name (all 'nan' strings removed):")
     st.write(poles_list)
 
     # Optional: make a dropdown for interactive selection
@@ -1427,8 +1427,8 @@ if misc_df is not None:
     selected_pole = st.selectbox("Select a pole to view details:", pole_options)
 
     if selected_pole:
-        # Show only the Work instructions, comment, and team_name in a small, clean way
+        # Show only the Work instructions, Comment, and Team Name in a clean way
         selected_row = poles_df_clean.loc[poles_df_clean['pole'] == selected_pole].iloc[0]
-
-    if selected_pole:
-        selected_data = poles_df_clean.loc[poles_df_clean['pole'] == selected_pole]
+        st.write(f"**Work instructions:** {selected_row['Work instructions']}")
+        st.write(f"**Comment:** {selected_row['comment']}")
+        st.write(f"**Team Name:** {selected_row['team_name']}")
