@@ -1384,3 +1384,37 @@ if misc_file is not None:
                 file_name=f"{cat_name}_Details_Separated.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
+
+# -----------------------------
+# 🛠️ Works Section
+# -----------------------------
+st.header("🛠️ Works")
+
+if misc_df is not None:
+    # Ensure keys are strings for mapping
+    filtered_df['item'] = filtered_df['item'].astype(str)
+    misc_df['column_b'] = misc_df['column_b'].astype(str)
+
+    # Create a mapping dictionary: item -> Column_I
+    item_to_column_i = misc_df.set_index('column_b')['column_i'].to_dict()
+
+    # Filter only rows where 'pole' exists
+    poles_df = filtered_df[filtered_df['pole'].notna()].copy()
+
+    # Map Column_I values to the poles
+    poles_df['column_i'] = poles_df['item'].map(item_to_column_i)
+
+    # Keep only relevant columns for display
+    poles_list = poles_df[['pole', 'column_i']].dropna().values.tolist()
+
+    # Display the list in the dashboard
+    st.write("Pole and corresponding Column_I values:")
+    st.write(poles_list)
+
+    # Optional: make a dropdown for interactive selection
+    pole_options = poles_df['pole'].dropna().unique().tolist()
+    selected_pole = st.selectbox("Select a pole to view Column_I:", pole_options)
+
+    if selected_pole:
+        selected_i = poles_df.loc[poles_df['pole'] == selected_pole, 'column_i'].values
+        st.write(f"Column_I values for pole **{selected_pole}**:", selected_i)
