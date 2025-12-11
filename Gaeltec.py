@@ -1172,35 +1172,17 @@ if misc_file is not None:
             continue
             
         # Merge misc_df to bring Column_K into filtered_df
+        # Map Column_K values from misc_df into filtered_df
         if misc_df is not None:
-            # Ensure merge keys are strings
+            # Ensure keys are strings
             filtered_df['item'] = filtered_df['item'].astype(str)
             misc_df['column_b'] = misc_df['column_b'].astype(str)
 
-            # Rename columns in misc_df to avoid conflicts
-            misc_df_renamed = misc_df[['column_b', 'column_k']].rename(
-                columns={'column_b': 'misc_b', 'column_k': 'material code'}
-            )
+            # Create a mapping dictionary: item -> Column_K
+            item_to_column_k = misc_df.set_index('column_b')['column_k'].to_dict()
 
-            # Drop conflicting columns in filtered_df if they already exist
-            if 'misc_b' in filtered_df.columns:
-                filtered_df = filtered_df.drop(columns=['misc_b'])
-            if 'material code' in filtered_df.columns:
-                filtered_df = filtered_df.drop(columns=['material code'])
-
-            # Perform the merge
-            filtered_df = filtered_df.merge(
-                misc_df_renamed,
-                how='left',
-                left_on='item',
-                right_on='misc_b'
-            )
-
-            # Drop the helper merge key
-            filtered_df = filtered_df.drop(columns=['misc_b'])
-
-            # Remove any duplicated columns
-            filtered_df = filtered_df.loc[:, ~filtered_df.columns.duplicated()]
+            # Add a new column with the mapped values
+            filtered_df['material code'] = filtered_df['item'].map(item_to_column_k)
 
         # Build regex pattern for this category’s keys
         pattern = '|'.join([re.escape(k) for k in keys.keys()])
