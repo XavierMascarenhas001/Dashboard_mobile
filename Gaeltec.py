@@ -1404,17 +1404,20 @@ if misc_df is not None:
     # Map Column_I values to the poles
     poles_df['column_i'] = poles_df['item'].map(item_to_column_i)
 
-    # Keep only relevant columns for display
-    poles_list = poles_df[['pole', 'column_i']].dropna().values.tolist()
+    # Keep only rows where both pole and column_i are not NaN
+    poles_df_clean = poles_df[['pole', 'column_i']].dropna()
 
-    # Display the list in the dashboard
-    st.write("Pole and corresponding Column_I values:")
+    # Convert to list of lists
+    poles_list = poles_df_clean.values.tolist()
+
+    # Display the cleaned list in the dashboard
+    st.write("Pole and corresponding Column_I values (no NaNs):")
     st.write(poles_list)
 
     # Optional: make a dropdown for interactive selection
-    pole_options = poles_df['pole'].dropna().unique().tolist()
+    pole_options = poles_df_clean['pole'].dropna().unique().tolist()
     selected_pole = st.selectbox("Select a pole to view Column_I:", pole_options)
 
     if selected_pole:
-        selected_i = poles_df.loc[poles_df['pole'] == selected_pole, 'column_i'].values
+        selected_i = poles_df_clean.loc[poles_df_clean['pole'] == selected_pole, 'column_i'].values
         st.write(f"Column_I values for pole **{selected_pole}**:", selected_i)
