@@ -1002,41 +1002,7 @@ if misc_file is not None:
 
     # -------------------------------
     # --- Miscelaneous 
-    
-    if 'misc_df' in locals():
-        try:
-        # Normalize column names
-            misc_df.columns = misc_df.columns.str.strip().str.lower()
 
-            st.subheader("🔍 Miscellaneous Parquet Preview")
-
-            # Show column names
-           st.write("Columns in miscelaneous.parquet:", misc_df.columns.tolist())
-
-            # Show first 50 rows
-            st.dataframe(misc_df.head(50), use_container_width=True)
-
-            # Optional: show sample of material dictionary
-            if 'column_b' in misc_df.columns and 'column_k' in misc_df.columns:
-                misc_df['column_b'] = misc_df['column_b'].astype(str).str.strip().str.lower()
-                misc_df['column_k'] = misc_df['column_k'].astype(str).str.strip()
-
-                material_dict = dict(zip(misc_df['column_b'], misc_df['column_k']))
-
-                st.subheader(f"🔑 Material Dictionary Preview ({len(material_dict)} entries)")
-                material_preview_df = pd.DataFrame(
-                    list(material_dict.items()),
-                    columns=["column_b (key)", "column_k (material code)"]
-                )
-                st.dataframe(material_preview_df.head(50), use_container_width=True)
-            else:
-               st.warning("Columns 'column_b' and 'column_k' not found in miscelaneous.parquet")
-
-        except Exception as e:
-            st.error(f"Could not preview miscelaneous.parquet: {e}")
-    else:
-        st.warning("Miscellaneous dataframe 'misc_df' not loaded")
-        
     # -------------------------------
     # --- Map Section ---
     # -------------------------------
