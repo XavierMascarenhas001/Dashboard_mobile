@@ -1388,6 +1388,9 @@ if misc_file is not None:
 # -----------------------------
 # 🛠️ Works Section
 # -----------------------------
+# -----------------------------
+# 🛠️ Works Section
+# -----------------------------
 st.header("🛠️ Works")
 
 if misc_df is not None:
@@ -1399,28 +1402,34 @@ if misc_df is not None:
     item_to_column_i = misc_df.set_index('column_b')['column_i'].to_dict()
 
     # Filter only rows where 'pole' exists
-    poles_df = filtered_df[filtered_df['pole'].notna() & (filtered_df['pole'].str.lower() != "nan")].copy()
+    poles_df = filtered_df[
+        filtered_df['pole'].notna() & 
+        (filtered_df['pole'].astype(str).str.lower() != "nan")
+    ].copy()
 
     # Map Column_I values to the poles
     poles_df['column_i'] = poles_df['item'].map(item_to_column_i)
 
-    # Keep only rows where both pole and column_i are valid
+    # Keep only rows where all values are valid
     poles_df_clean = poles_df[
-        poles_df['pole'].notna() & (poles_df['pole'].str.lower() != "nan") &
-        poles_df['column_i'].notna() & (poles_df['column_i'].astype(str).str.lower() != "nan")
-    ][['pole', 'column_i']]
+        poles_df['pole'].notna() & (poles_df['pole'].astype(str).str.lower() != "nan") &
+        poles_df['column_i'].notna() & (poles_df['column_i'].astype(str).str.lower() != "nan") &
+        poles_df['comment'].notna() & (poles_df['comment'].astype(str).str.lower() != "nan") &
+        poles_df['team_name'].notna() & (poles_df['team_name'].astype(str).str.lower() != "nan")
+    ][['pole', 'column_i', 'comment', 'team_name']]
 
     # Convert to list of lists
     poles_list = poles_df_clean.values.tolist()
 
     # Display the cleaned list in the dashboard
-    st.write("Pole and corresponding work instructions:")
+    st.write("Pole, Column_I, Comment, and Team Name (all 'nan' strings removed):")
     st.write(poles_list)
 
     # Optional: make a dropdown for interactive selection
     pole_options = poles_df_clean['pole'].unique().tolist()
-    selected_pole = st.selectbox("Select a pole to view Column_I:", pole_options)
+    selected_pole = st.selectbox("Select a pole to view details:", pole_options)
 
     if selected_pole:
-        selected_i = poles_df_clean.loc[poles_df_clean['pole'] == selected_pole, 'column_i'].values
-        st.write(f"Column_I values for pole **{selected_pole}**:", selected_i)
+        selected_data = poles_df_clean.loc[poles_df_clean['pole'] == selected_pole]
+        st.write(f"Details for pole **{selected_pole}**:")
+        st.write(selected_data)
