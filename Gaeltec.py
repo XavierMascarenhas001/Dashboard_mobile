@@ -682,21 +682,13 @@ if resume_file is not None:
     resume_df.columns = resume_df.columns.str.strip().str.lower()  # normalize columns
 
 # --- Load Miscellaneous Parquet file ---
-# --- Load Miscellaneous Parquet file ---
 misc_file = "miscelaneous.parquet"
+misc_df = None
 
 if misc_file is not None:
     try:
         misc_df = pd.read_parquet(misc_file)
-        misc_df.columns = misc_df.columns.str.strip().str.lower()  # normalize columns
-        
-        # Create dropdowns for each column
-        selected_b = st.selectbox("Select Column_B value:", misc_df["column_b"].dropna().unique().tolist())
-        selected_i = st.selectbox("Select Column_I value:", misc_df["column_i"].dropna().unique().tolist())
-        selected_k = st.selectbox("Select Column_K value:", misc_df["column_k"].dropna().unique().tolist())
-
-        st.write("Selected values:", selected_b, selected_i, selected_k)
-
+        misc_df.columns = misc_df.columns.str.strip().str.lower()
     except Exception as e:
         st.warning(f"Could not load Miscellaneous parquet: {e}")
 
@@ -839,7 +831,7 @@ if misc_file is not None:
                     mode='lines+markers',
                     line=dict(width=3, color='#32CD32'),
                     marker=dict(size=6, color='#32CD32'),
-                    hovertemplate='<b>Date: %{x}</b><br>Revenue: €%{y:,.0f}<extra></extra>'
+                    hovertemplate='<b>Date: %{x}</b><br>Revenue: £%{y:,.0f}<extra></extra>'
                 )
                 fig_revenue.update_layout(
                     height=600,  # taller chart
@@ -854,7 +846,7 @@ if misc_file is not None:
                         type='date'
                     ),
                     yaxis=dict(
-                        title='Revenue (€)',
+                        title='Revenue (£)',
                         tickformat=",.0f",
                         gridcolor='rgba(128,128,128,0.2)',
                         autorange=True,
@@ -1178,6 +1170,15 @@ if misc_file is not None:
         if 'item' not in filtered_df.columns or 'mapped' not in filtered_df.columns:
             st.warning("Missing required columns: item / mapped")
             continue
+            
+        # Merge misc_df to bring Column_K into filtered_df
+        if misc_df is not None:
+            filtered_df = filtered_df.merge(
+                misc_df[['column_b', 'column_k']],
+                how='left',
+                left_on='item',
+                right_on='column_b'
+            )
 
         # Build regex pattern for this category’s keys
         pattern = '|'.join([re.escape(k) for k in keys.keys()])
@@ -1287,8 +1288,8 @@ if misc_file is not None:
 
 
             # Your original approach but working:
-            extra_cols = ['pole','qsub','poling team','team_name', 'projectmanager', 'project', 'shire', 'segmentdesc','segmentcode', 'sourcefile']
-
+            extra_cols = ['pole','qsub','poling team','team_name','segmentcode','segmentdesc', 'projectmanager', 'project', 'shire','column_k' , 'sourcefile']
+            
             # Rename first
             selected_rows = selected_rows.rename(columns={
                 "poling team": "code", 
