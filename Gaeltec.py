@@ -682,10 +682,13 @@ if resume_file is not None:
     resume_df.columns = resume_df.columns.str.strip().str.lower()  # normalize columns
 
 # --- Load Miscellaneous Parquet file ---
-misc_file = r"miscelaneous.parquet"
+misc_file = r"Miscelaneous.parquet"
 if misc_file is not None:
-    misc_file = pd.read_parquet(misc_file)
-    misc_file.columns = misc_file.columns.str.strip().str.lower()  # normalize columns
+    try:
+        misc_df = pd.read_parquet(misc_file)
+        misc_df.columns = misc_df.columns.str.strip().str.lower()  # normalize columns
+    except Exception as e:
+        st.warning(f"Could not load Miscellaneous parquet: {e}")
 
     # -------------------------------
     # --- Sidebar Filters ---
@@ -812,7 +815,7 @@ if misc_file is not None:
                 revenue_by_date = chart_df.groupby('datetouse_dt')['total'].sum().reset_index()
                 revenue_by_date = revenue_by_date.sort_values('datetouse_dt')
                 revenue_by_date['total_formatted'] = revenue_by_date['total'].apply(
-                    lambda x: f"£{x:,.0f}" if x >= 1000 else f"£{x:.0f}"
+                    lambda x: f"£{x:,.0f}" if x >= 1000 else f"€{x:.0f}"
                 )
 
                 fig_revenue = px.line(
@@ -826,7 +829,7 @@ if misc_file is not None:
                     mode='lines+markers',
                     line=dict(width=3, color='#32CD32'),
                     marker=dict(size=6, color='#32CD32'),
-                    hovertemplate='<b>Date: %{x}</b><br>Revenue: £%{y:,.0f}<extra></extra>'
+                    hovertemplate='<b>Date: %{x}</b><br>Revenue: €%{y:,.0f}<extra></extra>'
                 )
                 fig_revenue.update_layout(
                     height=600,  # taller chart
@@ -841,7 +844,7 @@ if misc_file is not None:
                         type='date'
                     ),
                     yaxis=dict(
-                        title='Revenue (£)',
+                        title='Revenue (€)',
                         tickformat=",.0f",
                         gridcolor='rgba(128,128,128,0.2)',
                         autorange=True,
@@ -949,7 +952,7 @@ if misc_file is not None:
         
             
             # --- Pie Chart: % Complete ---
-    # -------------------------------
+# -------------------------------
     # --- Works Complete Pie Chart ---
     # -------------------------------
     st.markdown("<h3 style='text-align:center; color:white;'>Works Complete</h3>", unsafe_allow_html=True)
@@ -998,11 +1001,7 @@ if misc_file is not None:
 
     except Exception as e:
         st.warning(f"Could not generate % Complete pie chart: {e}")
-
-
-    # -------------------------------
-    # --- Miscelaneous 
-
+        
     # -------------------------------
     # --- Map Section ---
     # -------------------------------
@@ -1139,251 +1138,232 @@ if misc_file is not None:
 # -------------------------------
 # --- Mapping Bar Charts + Drill-down + Excel Export ---
 # -------------------------------
-# -------------------------------
-st.header("📊 Mapping Charts")
-convert_to_miles = st.checkbox("Convert Equipment/Conductor Length to Miles")
+    st.header("📊 Mapping Charts")
+    convert_to_miles = st.checkbox("Convert Equipment/Conductor Length to Miles")
 
-categories = [
-    ("Poles 🪵", pole_keys, "Quantity"),
-    ("Transformers ⚡🏭", transformer_keys, "Quantity"),
-    ("Conductors", conductor_keys, "Length (Km)"),
-    ("Conductors_2", conductor_2_keys, "Length (Km)"),
-    ("Equipment", equipment_keys, "Quantity"),
-    ("Insulators", insulator_keys, "Quantity"),
-    ("LV Joints (Kits)", lv_joint_kit_keys, "Quantity"),
-    ("LV Joint Modules", lv_joint_module_keys, "Quantity"),
-    ("HV Joints / Terminations ⚡", hv_joint_termination_keys, "Quantity"),
-    ("Cable Accessories 🔌", cable_accessory_keys, "Quantity"),
-    ("Foundation & Steelwork 🏗️", foundation_steelwork_keys, "Quantity")
-]
+    categories = [
+        ("Poles 🪵", pole_keys, "Quantity"),
+        ("Transformers ⚡🏭", transformer_keys, "Quantity"),
+        ("Conductors", conductor_keys, "Length (Km)"),
+        ("Conductors_2", conductor_2_keys, "Length (Km)"),
+        ("Equipment", equipment_keys, "Quantity"),
+        ("Insulators", insulator_keys, "Quantity"),
+        ("LV Joints (Kits)", lv_joint_kit_keys, "Quantity"),
+        ("LV Joint Modules", lv_joint_module_keys, "Quantity"),
+        ("HV Joints / Terminations ⚡", hv_joint_termination_keys, "Quantity"),
+        ("Cable Accessories 🔌", cable_accessory_keys, "Quantity"),
+        ("Foundation & Steelwork 🏗️", foundation_steelwork_keys, "Quantity")
+    ]
 
-def sanitize_sheet_name(name: str) -> str:
-    name = str(name)
-    name = re.sub(r'[:\\/*?\[\]\n\r]', '_', name)
-    name = re.sub(r'[^\x00-\x7F]', '_', name)  # remove Unicode like m²
-    return name[:31]
-
-
-# -------------------------------
-# --- Loop over categories ---
-# -------------------------------
-for cat_name, keys, y_label in categories:
-
-    if 'item' not in filtered_df.columns or 'mapped' not in filtered_df.columns:
-        st.warning("Missing required columns: item / mapped")
-        continue
-
-    # Build regex pattern for category keys
-    pattern = '|'.join([re.escape(k) for k in keys.keys()])
-    mask = filtered_df['item'].astype(str).str.contains(pattern, case=False, na=False)
-    sub_df = filtered_df[mask]
-
-    if sub_df.empty:
-        st.info(f"No data found for {cat_name}")
-        continue
-
-    # Aggregate
-    if 'qsub' in sub_df.columns:
-        sub_df['qsub_clean'] = pd.to_numeric(
-            sub_df['qsub'].astype(str).str.replace(" ", "").str.replace(",", ".", regex=False),
-            errors='coerce'
-        )
-        bar_data = sub_df.groupby('mapped')['qsub_clean'].sum().reset_index()
-        bar_data.columns = ['Mapped', 'Total']
-    else:
-        bar_data = sub_df['mapped'].value_counts().reset_index()
-        bar_data.columns = ['Mapped', 'Total']
-
-    if cat_name == "Conductors_2":
-        bar_data['Total'] = bar_data['Total'] / 1000
-
-    # Convert units to miles if needed
-    y_axis_label = y_label
-    if cat_name in ["Conductors", "Conductors_2"] and convert_to_miles:
-        bar_data['Total'] = bar_data['Total'] * 0.621371
-        y_axis_label = "Length (Miles)"
-
-    grand_total = bar_data['Total'].sum()
-    st.subheader(f"🔹 {cat_name} — Total: {grand_total:,.2f}")
-
-    # Plot bar chart
-    fig = go.Figure(data=[
-        go.Bar(
-            x=bar_data['Mapped'].astype(str).tolist(),
-            y=bar_data['Total'].astype(float).tolist(),
-            text=bar_data['Total'].astype(float).tolist(),
-            texttemplate='%{y:,.1f}',
-            textposition='outside'
-        )
-    ])
-    fig.update_layout(
-        title=f"{cat_name} Overview",
-        xaxis_title="Mapping",
-        yaxis_title=y_axis_label,
-        plot_bgcolor='rgba(0,0,0,0)',
-        paper_bgcolor='rgba(0,0,0,0)',
-        yaxis=dict(gridcolor='rgba(255,255,255,0.3)')
-    )
-    st.plotly_chart(fig, use_container_width=True, height=500)
-
-    # -------------------------------
-    # --- Drill-down section ---
-    # -------------------------------
-# Map Material Code using the dictionary
-    if material_dict:
-        selected_rows['item_norm'] = selected_rows['item'].astype(str).str.strip().str.lower()
-        selected_rows['material code'] = selected_rows['item_norm'].map(material_dict)
-        selected_rows = selected_rows.drop(columns=['item_norm'])
-
-    # Include 'material code' in display columns
-    display_cols = ['mapped', 'datetouse_display'] + extra_cols
-    if 'material code' in selected_rows.columns and 'material code' not in display_cols:
-        display_cols.append('material code')
+    def sanitize_sheet_name(name: str) -> str:
+        name = str(name)
+        name = re.sub(r'[:\\/*?\[\]\n\r]', '_', name)
+        name = re.sub(r'[^\x00-\x7F]', '_', name)  # remove Unicode like m²
+        return name[:31]
 
 
+    for cat_name, keys, y_label in categories:
 
+        # Only process if columns exist
+        if 'item' not in filtered_df.columns or 'mapped' not in filtered_df.columns:
+            st.warning("Missing required columns: item / mapped")
+            continue
 
-    
-    with st.expander("🔍 Click to explore more information", expanded=False):
-        st.subheader("Select Mapping to Drill-down:")
-        cols = st.columns(3)
+        # Build regex pattern for this category’s keys
+        pattern = '|'.join([re.escape(k) for k in keys.keys()])
 
-        for idx, mapping_value in enumerate(bar_data['Mapped']):
-            col_idx = idx % 3
-            with cols[col_idx]:
-                button_key = f"btn_{cat_name}_{mapping_value}_{idx}"
-                if st.button(f"📊 {mapping_value}", key=button_key, use_container_width=True):
-                    st.session_state[f"selected_{cat_name}"] = mapping_value
-                    st.rerun()
+        mask = filtered_df['item'].astype(str).str.contains(pattern, case=False, na=False)
+        sub_df = filtered_df[mask]
 
-    selected_mapping = st.session_state.get(f"selected_{cat_name}")
-    if selected_mapping:
-        st.subheader(f"Details for: **{selected_mapping}**")
-        if st.button("❌ Clear Selection", key=f"clear_{cat_name}"):
-            del st.session_state[f"selected_{cat_name}"]
-            st.rerun()
+        if sub_df.empty:
+            st.info(f"No data found for {cat_name}")
+            continue
 
-        selected_rows = sub_df[sub_df['mapped'] == selected_mapping].copy()
-        selected_rows.columns = selected_rows.columns.str.strip().str.lower()
-        selected_rows = selected_rows.loc[:, ~selected_rows.columns.duplicated()]
-
-        # -------------------------------
-        # --- Map Material Code using dictionary ---
-        # -------------------------------
-        if material_dict:
-            selected_rows['item_norm'] = selected_rows['item'].astype(str).str.strip().str.lower()
-            selected_rows['material code'] = selected_rows['item_norm'].map(material_dict)
-            selected_rows = selected_rows.drop(columns=['item_norm'])
-
-        # -------------------------------
-        # --- Prepare display columns ---
-        # -------------------------------
-        if 'datetouse' in selected_rows.columns:
-            selected_rows['datetouse_display'] = pd.to_datetime(
-                selected_rows['datetouse'], errors='coerce'
-            ).dt.strftime("%d/%m/%Y")
-            selected_rows.loc[selected_rows['datetouse'].isna(), 'datetouse_display'] = "Unplanned"
-
-        extra_cols = ['pole','qsub','poling team','team_name','projectmanager','project','shire','segmentdesc','segmentcode','sourcefile']
-        selected_rows = selected_rows.rename(columns={
-            "poling team": "code",
-            "team_name": "team lider"
-        })
-        extra_cols = [c if c != "poling team" else "code" for c in extra_cols]
-        extra_cols = [c if c != "team_name" else "team lider" for c in extra_cols]
-
-        display_cols = ['mapped', 'datetouse_display'] + extra_cols
-        if 'material code' in selected_rows.columns and 'material code' not in display_cols:
-            display_cols.append('material code')
-
-        display_cols = [c for c in display_cols if c in selected_rows.columns]
-
-        # -------------------------------
-        # --- Display table ---
-        # -------------------------------
-        if not selected_rows.empty:
-            st.dataframe(selected_rows[display_cols], use_container_width=True)
-            st.write(f"**Total records:** {len(selected_rows)}")
-            if 'qsub_clean' in selected_rows.columns:
-                total_qsub = selected_rows['qsub_clean'].sum()
-                st.write(f"Total QSUB: {total_qsub:,.2f}")
+        # Aggregate
+        if 'qsub' in sub_df.columns:
+            sub_df['qsub_clean'] = pd.to_numeric(
+                sub_df['qsub'].astype(str).str.replace(" ", "").str.replace(",", ".", regex=False),
+                errors='coerce'
+            )
+            bar_data = sub_df.groupby('mapped')['qsub_clean'].sum().reset_index()
+            bar_data.columns = ['Mapped', 'Total']
         else:
-            st.info("No records found for this selection")
+            bar_data = sub_df['mapped'].value_counts().reset_index()
+            bar_data.columns = ['Mapped', 'Total']
 
-        # -------------------------------
-        # --- Excel Export (Aggregated) ---
-        # -------------------------------
-        buffer_agg = BytesIO()
-        with pd.ExcelWriter(buffer_agg, engine='openpyxl') as writer:
-            aggregated_df = pd.DataFrame()
-            for bar_value in bar_data['Mapped']:
-                df_bar = sub_df[sub_df['mapped'] == bar_value].copy()
-                df_bar.columns = df_bar.columns.str.strip().str.lower()
+        # Divide Conductors_2 by 1000
+        if cat_name == "Conductors_2":
+            bar_data['Total'] = bar_data['Total'] / 1000
 
-                if 'datetouse' in df_bar.columns:
-                    df_bar['datetouse_display'] = pd.to_datetime(
-                        df_bar['datetouse'], errors='coerce'
-                    ).dt.strftime("%d/%m/%Y")
-                    df_bar.loc[df_bar['datetouse'].isna(), 'datetouse_display'] = "Unplanned"
+        # Convert conductor units if needed
+        y_axis_label = y_label
+        if cat_name in ["Conductors", "Conductors_2"] and convert_to_miles:
+            bar_data['Total'] = bar_data['Total'] * 0.621371
+            y_axis_label = "Length (Miles)"
 
-                # Map Material Code
-                if material_dict:
-                    df_bar['item_norm'] = df_bar['item'].astype(str).str.strip().str.lower()
-                    df_bar['material code'] = df_bar['item_norm'].map(material_dict)
-                    df_bar = df_bar.drop(columns=['item_norm'])
+        # Compute grand total for the category
+        grand_total = bar_data['Total'].sum()
 
-                cols_to_include = ['mapped','datetouse_display'] + extra_cols
-                if 'material code' in df_bar.columns and 'material code' not in cols_to_include:
-                    cols_to_include.append('material code')
-                cols_to_include = [c for c in cols_to_include if c in df_bar.columns]
-                df_bar = df_bar[cols_to_include]
+        # Update Streamlit subheader with total
+        st.subheader(f"🔹 {cat_name} — Total: {grand_total:,.2f}")
 
-                aggregated_df = pd.concat([aggregated_df, df_bar], ignore_index=True)
+        # Draw the bar chart
+        # FIX: Use go.Figure with explicit data types
+        fig = go.Figure(data=[
+            go.Bar(
+                x=bar_data['Mapped'].astype(str).tolist(),
+                y=bar_data['Total'].astype(float).tolist(),
+                text=bar_data['Total'].astype(float).tolist(),
+                texttemplate='%{y:,.1f}',
+                textposition='outside'
+            )
+        ])
 
-            aggregated_df.to_excel(writer, sheet_name='Aggregated', index=False)
-
-        buffer_agg.seek(0)
-        st.download_button(
-            f"📥 Download Excel (Aggregated): {cat_name} Details",
-            buffer_agg,
-            file_name=f"{cat_name}_Details_Aggregated.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        fig.update_layout(
+            title=f"{cat_name} Overview",
+            xaxis_title="Mapping",
+            yaxis_title=y_axis_label
+        )
+        
+        # Add background colors separately
+        fig.update_layout(
+            plot_bgcolor='rgba(0,0,0,0)',
+            paper_bgcolor='rgba(0,0,0,0)',
+            yaxis=dict(
+                gridcolor='rgba(255,255,255,0.3)'  # Semi-transparent white grid
+            )
         )
 
-        # -------------------------------
-        # --- Excel Export (Separated Sheets) ---
-        # -------------------------------
-        buffer_sep = BytesIO()
-        with pd.ExcelWriter(buffer_sep, engine='openpyxl') as writer:
-            for bar_value in bar_data['Mapped']:
-                df_bar = sub_df[sub_df['mapped'] == bar_value].copy()
-                df_bar.columns = df_bar.columns.str.strip().str.lower()
+        # Display the chart
+        st.plotly_chart(fig, use_container_width=True, height=500)
 
-                if 'datetouse' in df_bar.columns:
-                    df_bar['datetouse_display'] = pd.to_datetime(
-                        df_bar['datetouse'], errors='coerce'
-                    ).dt.strftime("%d/%m/%Y")
-                    df_bar.loc[df_bar['datetouse'].isna(), 'datetouse_display'] = "Unplanned"
+        # COLLAPSIBLE BUTTONS SECTION
+        with st.expander("🔍 Click to explore more information", expanded=False):
+            st.subheader("Select Mapping to Drill-down:")
+            
+            # Option 1: Buttons in columns
+            cols = st.columns(3)  # 3 buttons per row
+            
+            for idx, mapping_value in enumerate(bar_data['Mapped']):
+                col_idx = idx % 3  # Which column to use (0, 1, or 2)
+                
+                with cols[col_idx]:
+                    button_key = f"btn_{cat_name}_{mapping_value}_{idx}"
+                    
+                    if st.button(f"📊 {mapping_value}", key=button_key, use_container_width=True):
+                        st.session_state[f"selected_{cat_name}"] = mapping_value
+                        st.rerun()  # Refresh to show the details immediately
 
-                # Map Material Code
-                if material_dict:
-                    df_bar['item_norm'] = df_bar['item'].astype(str).str.strip().str.lower()
-                    df_bar['material code'] = df_bar['item_norm'].map(material_dict)
-                    df_bar = df_bar.drop(columns=['item_norm'])
+        # Check if a mapping was selected
+        selected_mapping = st.session_state.get(f"selected_{cat_name}")
+        
+        if selected_mapping:
+            st.subheader(f"Details for: **{selected_mapping}**")
+            
+            # Add a button to clear the selection
+            if st.button("❌ Clear Selection", key=f"clear_{cat_name}"):
+                del st.session_state[f"selected_{cat_name}"]
+                st.rerun()
+            
+            selected_rows = sub_df[sub_df['mapped'] == selected_mapping].copy()
+            selected_rows.columns = selected_rows.columns.str.strip().str.lower()
+            selected_rows = selected_rows.loc[:, ~selected_rows.columns.duplicated()]
 
-                cols_to_include = ['mapped','datetouse_display'] + extra_cols
-                if 'material code' in df_bar.columns and 'material code' not in cols_to_include:
-                    cols_to_include.append('material code')
-                cols_to_include = [c for c in cols_to_include if c in df_bar.columns]
-                df_bar = df_bar[cols_to_include]
+            if 'datetouse' in selected_rows.columns:
+                selected_rows['datetouse_display'] = pd.to_datetime(
+                    selected_rows['datetouse'], errors='coerce'
+                ).dt.strftime("%d/%m/%Y")
+                selected_rows.loc[selected_rows['datetouse'].isna(), 'datetouse_display'] = "Unplanned"
 
-                sheet_name = sanitize_sheet_name(bar_value)
-                df_bar.to_excel(writer, sheet_name=sheet_name, index=False)
 
-        buffer_sep.seek(0)
-        st.download_button(
-            f"📥 Download Excel (Separated): {cat_name} Details",
-            buffer_sep,
-            file_name=f"{cat_name}_Details_Separated.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
+            # Your original approach but working:
+            extra_cols = ['pole','qsub','poling team','team_name', 'projectmanager', 'project', 'shire', 'segmentdesc','segmentcode', 'sourcefile']
+
+            # Rename first
+            selected_rows = selected_rows.rename(columns={
+                "poling team": "code", 
+                "team_name": "team lider"
+            })
+
+            # Update the extra_cols list to use new names
+            extra_cols = [c if c != "poling team" else "code" for c in extra_cols]
+            extra_cols = [c if c != "team_name" else "team lider" for c in extra_cols]
+
+            # Filter to only existing columns
+            extra_cols = [c for c in extra_cols if c in selected_rows.columns]
+
+            # Create display date
+            if 'datetouse' in selected_rows.columns:
+                selected_rows['datetouse_display'] = pd.to_datetime(
+                    selected_rows['datetouse'], errors='coerce'
+                ).dt.strftime("%d/%m/%Y")
+                selected_rows.loc[selected_rows['datetouse'].isna(), 'datetouse_display'] = "Unplanned"
+
+            display_cols = ['mapped', 'datetouse_display'] + extra_cols
+            display_cols = [c for c in display_cols if c in selected_rows.columns]
+
+            if not selected_rows.empty:
+                st.dataframe(selected_rows[display_cols], use_container_width=True)
+                st.write(f"**Total records:** {len(selected_rows)}")
+    
+                if 'qsub_clean' in selected_rows.columns:
+                    total_qsub = selected_rows['qsub_clean'].sum()
+                    st.write(f"Total QSUB: {total_qsub:,.2f}")
+            else:
+                st.info("No records found for this selection")
+                
+            # Excel Export - Aggregated
+            buffer_agg = BytesIO()
+            with pd.ExcelWriter(buffer_agg, engine='openpyxl') as writer:
+                aggregated_df = pd.DataFrame()
+                for bar_value in bar_data['Mapped']:
+                    df_bar = sub_df[sub_df['mapped'] == bar_value].copy()
+                    df_bar = df_bar.loc[:, ~df_bar.columns.duplicated()]
+                    if 'datetouse' in df_bar.columns:
+                        df_bar['datetouse_display'] = pd.to_datetime(
+                            df_bar['datetouse'], errors='coerce'
+                        ).dt.strftime("%d/%m/%Y")
+                        df_bar.loc[df_bar['datetouse'].isna(), 'datetouse_display'] = "Unplanned"
+
+                    cols_to_include = ['mapped', 'datetouse_display'] + extra_cols
+                    cols_to_include = [c for c in cols_to_include if c in df_bar.columns]
+                    df_bar = df_bar[cols_to_include]
+
+                    aggregated_df = pd.concat([aggregated_df, df_bar], ignore_index=True)
+
+                aggregated_df.to_excel(writer, sheet_name='Aggregated', index=False)
+
+            buffer_agg.seek(0)
+            st.download_button(
+                f"📥 Download Excel (Aggregated): {cat_name} Details",
+                buffer_agg,
+                file_name=f"{cat_name}_Details_Aggregated.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
+
+            # Excel Export - Separate Sheets
+            buffer_sep = BytesIO()
+            with pd.ExcelWriter(buffer_sep, engine='openpyxl') as writer:
+                for bar_value in bar_data['Mapped']:
+                    df_bar = sub_df[sub_df['mapped'] == bar_value].copy()
+                    df_bar = df_bar.loc[:, ~df_bar.columns.duplicated()]
+                    if 'datetouse' in df_bar.columns:
+                        df_bar['datetouse_display'] = pd.to_datetime(
+                            df_bar['datetouse'], errors='coerce'
+                        ).dt.strftime("%d/%m/%Y")
+                        df_bar.loc[df_bar['datetouse'].isna(), 'datetouse_display'] = "Unplanned"
+
+                    cols_to_include = ['mapped', 'datetouse_display'] + extra_cols
+                    cols_to_include = [c for c in cols_to_include if c in df_bar.columns]
+                    df_bar = df_bar[cols_to_include]
+
+                    sheet_name = sanitize_sheet_name(bar_value)
+                    df_bar.to_excel(writer, sheet_name=sheet_name, index=False)
+
+            buffer_sep.seek(0)
+            st.download_button(
+                f"📥 Download Excel (Separated): {cat_name} Details",
+                buffer_sep,
+                file_name=f"{cat_name}_Details_Separated.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
