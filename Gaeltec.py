@@ -1399,23 +1399,26 @@ if misc_df is not None:
     item_to_column_i = misc_df.set_index('column_b')['column_i'].to_dict()
 
     # Filter only rows where 'pole' exists
-    poles_df = filtered_df[filtered_df['pole'].notna()].copy()
+    poles_df = filtered_df[filtered_df['pole'].notna() & (filtered_df['pole'] != "")].copy()
 
     # Map Column_I values to the poles
     poles_df['column_i'] = poles_df['item'].map(item_to_column_i)
 
-    # Keep only rows where both pole and column_i are not NaN
-    poles_df_clean = poles_df[['pole', 'column_i']].dropna()
+    # Keep only rows where both pole and column_i are not NaN or empty
+    poles_df_clean = poles_df[
+        poles_df['pole'].notna() & (poles_df['pole'] != "") &
+        poles_df['column_i'].notna() & (poles_df['column_i'] != "")
+    ][['pole', 'column_i']]
 
     # Convert to list of lists
     poles_list = poles_df_clean.values.tolist()
 
     # Display the cleaned list in the dashboard
-    st.write("Pole and corresponding Column_I values (no NaNs):")
+    st.write("Pole and corresponding Column_I values (NaNs and empty values removed):")
     st.write(poles_list)
 
     # Optional: make a dropdown for interactive selection
-    pole_options = poles_df_clean['pole'].dropna().unique().tolist()
+    pole_options = poles_df_clean['pole'].unique().tolist()
     selected_pole = st.selectbox("Select a pole to view Column_I:", pole_options)
 
     if selected_pole:
