@@ -1427,8 +1427,6 @@ if misc_df is not None:
     selected_pole = st.selectbox("Select a pole to view details:", pole_options)
 
     if selected_pole:
-        # Show only the Work instructions, Comment, and Team Name in a clean way
-        selected_row = poles_df_clean.loc[poles_df_clean['pole'] == selected_pole].iloc[0]
-        st.write(f"**Work instructions:** {selected_row['Work instructions']}")
-        st.write(f"**Comment:** {selected_row['comment']}")
-        st.write(f"**Team Name:** {selected_row['team_name']}")
+        selected_data = poles_df_clean.loc[poles_df_clean['pole'] == selected_pole]
+        st.write(f"Details for pole **{selected_pole}**:")
+        st.write(selected_data)
