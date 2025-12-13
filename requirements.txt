@@ -10,6 +10,8 @@ pyarrow
 openpyxl
 matplotlib
 requests
+docx
+
 
 
 
