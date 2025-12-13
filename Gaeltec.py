@@ -101,6 +101,68 @@ def get_weather_forecast(api_key, location="Ayrshire"):
         st.error(f"Forecast API error: {e}")
         return None
 
+
+def poles_to_word(df: pd.DataFrame) -> BytesIO:
+    doc = Document()
+
+    # Group by pole
+    grouped = df.groupby('pole', sort=False)
+
+    for pole, group in grouped:
+        try:
+            pole_str = str(int(pole))
+        except:
+            pole_str = str(pole)
+
+        row_texts = []
+
+        for _, row in group.iterrows():
+            parts = []
+
+            if pd.notna(row['Work instructions']):
+                parts.append(str(row['Work instructions']).strip())
+
+            if pd.notna(row['comment']):
+                parts.append(f"({row['comment']})")
+
+            if pd.notna(row['team_name']):
+                parts.append(f"[{row['team_name']}]")
+
+            if parts:
+                row_texts.append(" ".join(parts))
+
+        if not row_texts:
+            continue
+
+        # Bullet paragraph
+        p = doc.add_paragraph(style='List Bullet')
+
+        # Pole number
+        run_number = p.add_run(f"{pole_str} – ")
+        run_number.bold = True
+        run_number.font.name = 'Times New Roman'
+        run_number.font.size = Pt(12)
+
+        # Add rows separated by ;
+        for i, text in enumerate(row_texts):
+            run_item = p.add_run(text)
+            run_item.bold = True
+            run_item.font.name = 'Times New Roman'
+            run_item.font.size = Pt(12)
+
+            # Optional highlight rule (example)
+            if "Erect Pole" in text:
+                run_item.font.highlight_color = WD_COLOR_INDEX.RED
+
+            if i < len(row_texts) - 1:
+                p.add_run(" ; ")
+
+    # Save to memory
+    buffer = BytesIO()
+    doc.save(buffer)
+    buffer.seek(0)
+    return buffer
+
 # --- MAPPINGS ---
 
 # --- Project Manager Mapping ---
@@ -1433,3 +1495,14 @@ if misc_df is not None:
         selected_data = poles_df_clean.loc[poles_df_clean['pole'] == selected_pole]
         st.write(f"Details for pole **{selected_pole}**:")
         st.write(selected_data)
+
+    st.subheader("📄 Download Word File")
+
+    word_file = poles_to_word(poles_df_clean)
+
+    st.download_button(
+        label="⬇️ Download Work Instructions (.docx)",
+        data=word_file,
+        file_name="Pole_Work_Instructions.docx",
+        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    )
