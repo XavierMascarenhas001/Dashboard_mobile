@@ -105,7 +105,6 @@ def get_weather_forecast(api_key, location="Ayrshire"):
 def poles_to_word(df: pd.DataFrame) -> BytesIO:
     doc = Document()
 
-    # Group by pole
     grouped = df.groupby('pole', sort=False)
 
     for pole, group in grouped:
@@ -125,9 +124,6 @@ def poles_to_word(df: pd.DataFrame) -> BytesIO:
             if pd.notna(row['comment']):
                 parts.append(f"({row['comment']})")
 
-            if pd.notna(row['team_name']):
-                parts.append(f"[{row['team_name']}]")
-
             if parts:
                 row_texts.append(" ".join(parts))
 
@@ -137,32 +133,28 @@ def poles_to_word(df: pd.DataFrame) -> BytesIO:
         # Bullet paragraph
         p = doc.add_paragraph(style='List Bullet')
 
-        # Pole number
         run_number = p.add_run(f"{pole_str} – ")
         run_number.bold = True
         run_number.font.name = 'Times New Roman'
         run_number.font.size = Pt(12)
 
-        # Add rows separated by ;
         for i, text in enumerate(row_texts):
             run_item = p.add_run(text)
             run_item.bold = True
             run_item.font.name = 'Times New Roman'
             run_item.font.size = Pt(12)
 
-            # Optional highlight rule (example)
             if "Erect Pole" in text:
                 run_item.font.highlight_color = WD_COLOR_INDEX.RED
 
             if i < len(row_texts) - 1:
                 p.add_run(" ; ")
 
-    # Save to memory
     buffer = BytesIO()
     doc.save(buffer)
     buffer.seek(0)
     return buffer
-
+    
 # --- MAPPINGS ---
 
 # --- Project Manager Mapping ---
