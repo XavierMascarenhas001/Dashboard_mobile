@@ -834,6 +834,7 @@ if misc_file is not None:
     money_logo_base64 = base64.b64encode(buffered.getvalue()).decode()
 
     # Display Total & Variation (Centered)
+    st.markdown("<h2>Financial</h2>", unsafe_allow_html=True)
     st.markdown("<h3 style='text-align:center; color:white;'>Revenue</h3>", unsafe_allow_html=True)
     try:
         st.markdown(
@@ -1197,7 +1198,7 @@ if misc_file is not None:
 # -------------------------------
 # --- Mapping Bar Charts + Drill-down + Excel Export ---
 # -------------------------------
-    st.header("📊 Mapping Charts")
+    st.header("🪵 Materials")
     convert_to_miles = st.checkbox("Convert Equipment/Conductor Length to Miles")
 
     categories = [
