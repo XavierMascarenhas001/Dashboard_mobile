@@ -1520,15 +1520,3 @@ if misc_df is not None:
 
     st.pyplot(fig)
     plt.close(fig)
-
-    # 📄 Word download (same indentation level)
-    st.subheader("📄 Download Word File")
-
-    word_file = poles_to_word(poles_df_clean)
-
-    st.download_button(
-        label="⬇️ Download Work Instructions (.docx)",
-        data=word_file,
-        file_name="Pole_Work_Instructions.docx",
-        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-    )
