@@ -1419,8 +1419,8 @@ if misc_df is not None:
     poles_list = poles_df_clean.values.tolist()
 
     # Display the cleaned list in the dashboard
-    st.write("Pole, Work Instructions, Comment, and Team Name (all 'nan' strings removed):")
-    st.write(poles_list)
+    st.write("Work Instructions, Comment, and Team Name")
+    #st.write(poles_list)
 
     # Optional: make a dropdown for interactive selection
     pole_options = poles_df_clean['pole'].unique().tolist()
