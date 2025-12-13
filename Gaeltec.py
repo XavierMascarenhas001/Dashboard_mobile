@@ -1498,3 +1498,25 @@ if misc_df is not None:
         file_name="Pole_Work_Instructions.docx",
         mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
     )
+
+    # 📊 Pie chart
+    st.subheader("📊 Most Repeated Work Instructions")
+
+    work_counts = (
+        poles_df_clean['Work instructions']
+        .value_counts()
+        .reset_index()
+    )
+
+    work_counts.columns = ['Work instructions', 'Count']
+
+    st.pyplot(
+        work_counts
+        .set_index('Work instructions')
+        .plot.pie(
+            y='Count',
+            autopct='%1.1f%%',
+            legend=False,
+            figsize=(6, 6)
+        )
+    )
