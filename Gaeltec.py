@@ -1515,20 +1515,31 @@ if misc_df is not None:
     # -----------------------------
     # 📊 Pie chart (Works breakdown)
     # -----------------------------
+
     if not poles_df_view.empty:
-        work_data = poles_df_view['Work instructions'].value_counts().reset_index()
+        # Count work instructions and remove NaN / empty strings
+        work_data = (
+            poles_df_view['Work instructions']
+            .dropna()  # remove NaN
+            .replace('', pd.NA)  # replace empty strings with NA
+            .dropna()  # remove the new NAs
+            .value_counts()
+            .reset_index()
+        )
         work_data.columns = ['Work instructions', 'total']
 
-        fig_work = px.pie(
-            work_data,
-            names='Work instructions',
-            values='total',
-            hole=0.4
-        )
-        fig_work.update_traces(textinfo='percent+label', textfont_size=16)
-        fig_work.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', showlegend=False)
-        st.plotly_chart(fig_work, use_container_width=True)
-
+        if not work_data.empty:
+            fig_work = px.pie(
+                work_data,
+                names='Work instructions',
+                values='total',
+                hole=0.4
+            )
+            fig_work.update_traces(textinfo='percent+label', textfont_size=16)
+            fig_work.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', showlegend=False)
+            st.plotly_chart(fig_work, use_container_width=True)
+        else:
+            st.info("No valid work instructions available for the selected filters.")
     # -----------------------------
     # 📄 Word export
     # -----------------------------
