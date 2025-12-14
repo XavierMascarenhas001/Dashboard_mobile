@@ -1555,18 +1555,21 @@ if agg_view is not None and 'total' in agg_view.columns:
         filtered_agg = filtered_agg[filtered_agg['pole'].astype(str) == selected_pole]
 
     if not filtered_agg.empty:
-        # Aggregate sum per team per day
-        agg_grouped = filtered_agg.dropna(subset=['datetouse_dt', 'team_name']).groupby(
-            ['datetouse_dt', 'team_name']
-        )['total'].sum().reset_index()
+        # --- Aggregate sum per team per day ---
+        agg_grouped = (
+            filtered_agg
+            .dropna(subset=['datetouse_dt', 'team_name'])
+            .groupby(['datetouse_dt', 'team_name'], as_index=False)['total']
+            .sum()
+        )
 
-        # Fill missing dates for all teams
-        all_dates = pd.date_range(start=agg_grouped['datetouse_dt'].min(), end=agg_grouped['datetouse_dt'].max())
+        # --- Fill missing dates for all teams ---
+        all_dates = pd.date_range(agg_grouped['datetouse_dt'].min(), agg_grouped['datetouse_dt'].max())
         all_teams = agg_grouped['team_name'].unique()
         all_combinations = pd.MultiIndex.from_product([all_dates, all_teams], names=['datetouse_dt', 'team_name'])
         time_df = agg_grouped.set_index(['datetouse_dt', 'team_name']).reindex(all_combinations, fill_value=0).reset_index()
 
-        # Plot the chart
+        # --- Plot the line chart ---
         fig_time = px.line(
             time_df,
             x='datetouse_dt',
@@ -1588,5 +1591,7 @@ if agg_view is not None and 'total' in agg_view.columns:
         st.plotly_chart(fig_time, use_container_width=True)
     else:
         st.info("No time-based data available for the selected filters.")
+else:
+    st.info("No 'total' column found in aggregated data.")
 else:
     st.info("No 'total' column found in aggregated data.")
