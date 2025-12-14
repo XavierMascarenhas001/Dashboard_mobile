@@ -1602,9 +1602,10 @@ if agg_view is not None and 'total' in agg_view.columns:
             xaxis_title="Day",
             yaxis_title="Total Jobs",
             xaxis=dict(
-                tickformat="%d/%m/%Y",
+                tickformat="%d/%m",
                 tickangle=45,
-                dtick="D1"
+                nticks=10,
+                tickmode='auto',
             ),
             paper_bgcolor='rgba(0,0,0,0)',
             plot_bgcolor='rgba(0,0,0,0)',
