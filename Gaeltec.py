@@ -1520,9 +1520,10 @@ if misc_df is not None:
         # Count work instructions and remove NaN / empty strings
         work_data = (
             poles_df_view['Work instructions']
+            .astype(str)
+            .str.lower()
+            .replace('nan', pd.NA)
             .dropna()  # remove NaN
-            .replace('', pd.NA)  # replace empty strings with NA
-            .dropna()  # remove the new NAs
             .value_counts()
             .reset_index()
         )
