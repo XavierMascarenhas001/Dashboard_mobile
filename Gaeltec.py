@@ -1561,12 +1561,17 @@ st.subheader("📈 Jobs per Team per Day")
 if agg_view is not None and 'total' in agg_view.columns:
     filtered_agg = agg_view.copy()
 
-    # Apply segment and pole filters
+    # Apply segment filter
     if selected_segment != 'All' and 'segmentcode' in filtered_agg.columns:
-        filtered_agg = filtered_agg[filtered_agg['segmentcode'].astype(str).str.strip() == str(selected_segment).strip()]
+        filtered_agg = filtered_agg[
+            filtered_agg['segmentcode'].astype(str).str.strip() == str(selected_segment).strip()
+        ]
 
-    if selected_pole and 'pole' in filtered_agg.columns:
-        filtered_agg = filtered_agg[filtered_agg['pole'].astype(str).str.strip() == str(selected_pole).strip()]
+    # Apply pole filter
+    if selected_pole != "All" and 'pole' in filtered_agg.columns:
+        filtered_agg = filtered_agg[
+            filtered_agg['pole'].astype(str).str.strip() == str(selected_pole).strip()
+        ]
 
     # Ensure datetime column
     if 'datetouse_dt' not in filtered_agg.columns:
@@ -1593,21 +1598,19 @@ if agg_view is not None and 'total' in agg_view.columns:
             markers=True,
             hover_data={'datetouse_dt': True, 'team_name': True, 'total': True}
         )
-
         fig_time.update_layout(
             xaxis_title="Day",
             yaxis_title="Total Jobs",
             xaxis=dict(
                 tickformat="%d/%m/%Y",
                 tickangle=45,
-                dtick="D1"  # one tick per day
+                dtick="D1"
             ),
             paper_bgcolor='rgba(0,0,0,0)',
             plot_bgcolor='rgba(0,0,0,0)',
             legend_title_text="Team",
             height=500
         )
-
         st.plotly_chart(fig_time, use_container_width=True)
     else:
         st.info("No time-based data available for the selected filters.")
