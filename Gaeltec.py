@@ -1602,7 +1602,7 @@ if agg_view is not None and 'total' in agg_view.columns:
             xaxis_title="Day",
             yaxis_title="Total Jobs £",
             xaxis=dict(
-                tickformat="%d/%m,%Y",
+                tickformat="%d/%m/%Y",
                 tickangle=45,
                 nticks=10,
                 tickmode='auto',
