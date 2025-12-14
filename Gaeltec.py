@@ -1600,9 +1600,9 @@ if agg_view is not None and 'total' in agg_view.columns:
         )
         fig_time.update_layout(
             xaxis_title="Day",
-            yaxis_title="Total Jobs",
+            yaxis_title="Total Jobs £",
             xaxis=dict(
-                tickformat="%d/%m",
+                tickformat="%d/%m,%Y",
                 tickangle=45,
                 nticks=10,
                 tickmode='auto',
