@@ -1426,14 +1426,11 @@ if misc_file is not None:
                 ).dt.strftime("%d/%m/%Y")
                 selected_rows.loc[selected_rows['datetouse'].isna(), 'datetouse_display'] = "Unplanned"
 
-            display_cols = ['mapped','pole','qsub','datetouse_display'] + extra_cols
-            display_cols = [c for c in display_cols if c in selected_rows.columns]
-
-
             # 🔥 RENAME FOR DISPLAY
-            selected_rows_display = selected_rows[display_cols].rename(
-                columns=column_rename_map
-            )
+            selected_rows = selected_rows.rename(columns=column_rename_map)
+
+            display_cols = ['Output','pole','Quantity','Date'] + extra_cols
+            display_cols = [c for c in display_cols if c in selected_rows.columns]
         
 
             if not selected_rows.empty:
