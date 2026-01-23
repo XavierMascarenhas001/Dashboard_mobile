@@ -1402,7 +1402,7 @@ if misc_file is not None:
 
 
             # Your original approach but working:
-            extra_cols = ['poling team','team_name','segmentdesc','segmentcode', 'projectmanager', 'project', 'shire','material_code' ,'pid_ohl_nr', 'sourcefile' ]
+            extra_cols = ['poling team','team_name','shire','project','projectmanager','segmentcode','segmentdesc', 'material_code' ,'pid_ohl_nr', 'sourcefile' ]
             
             # Rename first
             selected_rows = selected_rows.rename(columns={
@@ -1429,7 +1429,7 @@ if misc_file is not None:
             # 🔥 RENAME FOR DISPLAY
             selected_rows = selected_rows.rename(columns=column_rename_map)
 
-            display_cols = ['Output','pole','Quantity','Date','District','Project Manager','Circuit','Segment','PID'] + extra_cols
+            display_cols = ['Output','pole','Quantity','Date','District','project','Project Manager','Circuit','Segment','PID'] + extra_cols
             display_cols = [c for c in display_cols if c in selected_rows.columns]
         
 
