@@ -19,6 +19,9 @@ from docx import Document
 from docx.shared import Pt
 from docx.enum.text import WD_COLOR_INDEX
 from collections import OrderedDict
+from openpyxl.styles import Font, PatternFill
+from openpyxl.utils import get_column_letter
+from openpyxl.styles import Border, Side
 
 # --- Page config for wide layout ---
 st.set_page_config(
@@ -301,67 +304,95 @@ pole_keys = {
     "16x365 HV SINGLE POLE": "16s",
     "16x385 HV SINGLE POLE": "16es",
     "16x405 HV SINGLE POLE": "16esp",
+    "11x315 H POLE HV Creosote":"11es",
+    "14x335 H POLE HV Creosote":"14s",
+    "11x315 HV SINGLE POLE":"11es",
+    "13x320 H POLE HV Creosote":"13s",
+    "11x240 CREOSOTE LV POLE":"11",
+    "11x240 HV SINGLE POLE":"11m",
+    "10x230 CREOSOTE LV POLE":"10m",
+    "11x335 H POLE HV Creosote":"11esp",
+    "10x305 H POLE HV Creosote":"10es",
+    "11x240 BIOCIDE LV POLE":"11m B",
+    "16x365 H POLE HV Creosote":"16s",
+    "16x405 EHV SINGLE POLE CREOSOTE":"16esp",
+    "12x325 H POLE HV Creosote":"12es",
+    "16x385 H POLE HV Creosote":"16es",
+    "12x305 EHV SINGLE POLE CREOSOTE":"12s",
+    "13x340 EHV SINGLE POLE CREOSOTE":"13es",
+    "11x335 EHV SINGLE POLE CREOSOTE":"11es",
+    "11x315 EHV SINGLE POLE CREOSOTE":"11es",
+    "12x325 EHV SINGLE POLE CREOSOTE":"12es"
 }
+
+pole_change_keys = {
+    "Erect Single HV/EHV Pole, up to and including 12 metre pole":"HV pole", 
+    "Erect LV Structure Single Pole, up to and including 12 metre pole" :"LV pole",
+    "Erect Section Structure 'H' HV/EHV Pole, up to and including 12 metre pole.":"H HV pole",
+    "Plumb single pole":"Recover pole",
+    "Recover single pole, up to and including 15 metres in height, and reinstate, all ground conditions":"Recover pole"
+}
+
 
 # --- Equipment / Conductor Mappings ---
 equipment_keys = {
-    "Hazel - 50mm² AAAC bare (1000m drums)": "Hazel 50mm²",
-    "Oak - 100mm² AAAC bare (1000m drums)": "Oak 100mm²",
-    "Ash - 150mm² AAAC bare (1000m drums)": "Ash 150mm²",
-    "Poplar - 200mm² AAAC bare (1000m drums)": "Poplar 200mm²",
-    "Upas - 300mm² AAAC bare (1000m drums)": "Upas 300mm²",
+    "Hazel - 50mm² AAAC bare (1000m drums)": "Hazel 50mm² (1000m drums)",
+    "Oak - 100mm² AAAC bare (1000m drums)": "Oak 100mm² (1000m drums)",
+    "Ash - 150mm² AAAC bare (1000m drums)": "Ash 150mm² (1000m drums)",
+    "Poplar - 200mm² AAAC bare (1000m drums)": "Poplar 200mm² (1000m drums)",
+    "Upas - 300mm² AAAC bare (1000m drums)": "Upas 300mm² (1000m drums)",
     "Poplar OPPC - 200mm² AAAC equivalent bare": "Poplar OPPC 200mm²",
     "Upas OPPC - 300mm² AAAC equivalent bare": "Upas OPPC 300mm²",
     # ACSR
-    "Gopher - 25mm² ACSR bare (1000m drums)": "Gopher 25mm²",
-    "Caton - 25mm² Compacted ACSR bare (1000m drums)": "Caton 25mm²",
-    "Rabbit - 50mm² ACSR bare (1000m drums)": "Rabbit 50mm²",
-    "Wolf - 150mm² ACSR bare (1000m drums)": "Wolf 150mm²",
+    "Gopher - 25mm² ACSR bare (1000m drums)": "Gopher 25mm² (1000m drums)",
+    "Caton - 25mm² Compacted ACSR bare (1000m drums)": "Caton 25mm² (1000m drums)",
+    "Rabbit - 50mm² ACSR bare (1000m drums)": "Rabbit 50mm² (1000m drums)",
+    "Wolf - 150mm² ACSR bare (1000m drums)": "Wolf 150mm² (1000m drums)",
     "Horse - 70mm² ACSR bare": "Horse 70mm²",
-    "Dog - 100mm² ACSR bare (1000m drums)": "Dog 100mm²",
-    "Dingo - 150mm² ACSR bare (1000m drums)": "Dingo 150mm²",
+    "Dog - 100mm² ACSR bare (1000m drums)": "Dog 100mm² (1000m drums)",
+    "Dingo - 150mm² ACSR bare (1000m drums)": "Dingo 150mm² (1000m drums)",
     # Copper
-    "Hard Drawn Copper 16mm² ( 3/2.65mm ) (500m drums)": "Copper 16mm²",
-    "Hard Drawn Copper 32mm² ( 3/3.75mm ) (1000m drums)": "Copper 32mm²",
-    "Hard Drawn Copper 70mm² (500m drums)": "Copper 70mm²",
-    "Hard Drawn Copper 100mm² (500m drums)": "Copper 100mm²",
+    "Hard Drawn Copper 16mm² ( 3/2.65mm ) (500m drums)": "Copper 16mm² (500m drums)",
+    "Hard Drawn Copper 32mm² ( 3/3.75mm ) (1000m drums)": "Copper 32mm² (500m drums)",
+    "Hard Drawn Copper 70mm² (500m drums)": "Copper 70mm² (500m drums)",
+    "Hard Drawn Copper 100mm² (500m drums)": "Copper 100mm² (500m drums)",
     # PVC covered
-    "35mm² Copper (Green / Yellow PVC covered) (50m drums)": "Copper 35mm² GY PVC",
-    "70mm² Copper (Green / Yellow PVC covered) (50m drums)": "Copper 70mm² GY PVC",
-    "35mm² Copper (Blue PVC covered) (50m drums)": "Copper 35mm² Blue PVC",
-    "70mm² Copper (Blue PVC covered) (50m drums)": "Copper 70mm² Blue PVC",
+    "35mm² Copper (Green / Yellow PVC covered) (50m drums)": "Copper 35mm² GY PVC (50m drums)",
+    "70mm² Copper (Green / Yellow PVC covered) (50m drums)": "Copper 70mm² GY PVC (50m drums)",
+    "35mm² Copper (Blue PVC covered) (50m drums)": "Copper 35mm² Blue PVC (50m drums)",
+    "70mm² Copper (Blue PVC covered) (50m drums)": "Copper 70mm² Blue PVC (50m drums)",
     # Double insulated
-    "35mm² Double Insulated (Brown) (50m drums)": "Double Insulated 35mm² Brown",
-    "35mm² Double Insulated (Blue) (50m drums)": "Double Insulated 35mm² Blue",
-    "70mm² Double Insulated (Brown) (50m drums)": "Double Insulated 70mm² Brown",
-    "70mm² Double Insulated (Blue) (50m drums)": "Double Insulated 70mm² Blue",
-    "120mm² Double Insulated (Brown) (50m drums)": "Double Insulated 120mm² Brown",
-    "120mm² Double Insulated (Blue) (50m drums)": "Double Insulated 120mm² Blue",
+    "35mm² Double Insulated (Brown) (50m drums)": "Double Insulated 35mm² Brown (50m drums)",
+    "35mm² Double Insulated (Blue) (50m drums)": "Double Insulated 35mm² Blue (50m drums)",
+    "70mm² Double Insulated (Brown) (50m drums)": "Double Insulated 70mm² Brown (50m drums)",
+    "70mm² Double Insulated (Blue) (50m drums)": "Double Insulated 70mm² Blue (50m drums)",
+    "120mm² Double Insulated (Brown) (50m drums)": "Double Insulated 120mm² Brown (50m drums)",
+    "120mm² Double Insulated (Blue) (50m drums)": "Double Insulated 120mm² Blue (50m drums)",
     # LV cables
-    "LV Cable 1ph 4mm Concentric (250m drums)": "LV 1ph 4mm Concentric",
-    "LV Cable 1ph 25mm CNE (250m drums)": "LV 1ph 25mm CNE",
-    "LV Cable 1ph 25mm SNE (100m drums)": "LV 1ph 25mm SNE",
-    "LV Cable 1ph 35mm CNE (250m drums)": "LV 1ph 35mm CNE",
-    "LV Cable 1ph 35mm SNE (100m drums)": "LV 1ph 35mm SNE",
-    "LV Cable 3ph 35mm Cu Split Con (250m drums)": "LV 3ph 35mm Cu Split Con",
-    "LV Cable 3ph 35mm SNE (250m drums)": "LV 3ph 35mm SNE",
-    "LV Cable 3ph 35mm CNE (250m drums)": "LV 3ph 35mm CNE",
-    "LV Cable 3ph 35mm CNE Al (LSOH) (250m drums)": "LV 3ph 35mm CNE Al LSOH",
-    "LV Cable 3c 95mm W/F (250m drums)": "LV 3c 95mm W/F",
-    "LV Cable 3c 185mm W/F (250m drums)": "LV 3c 185mm W/F",
-    "LV Cable 3c 300mm W/F (250m drums)": "LV 3c 300mm W/F",
-    "LV Cable 4c 95mm W/F (250m drums)": "LV 4c 95mm W/F",
-    "LV Cable 4c 185mm W/F (250m drums)": "LV 4c 185mm W/F",
-    "LV Cable 4c 240mm W/F (250m drums)": "LV 4c 240mm W/F",
-    "LV Marker Tape (365m roll)": "LV Marker Tape",
+    "LV Cable 1ph 4mm Concentric (250m drums)": "LV 1ph 4mm Concentric (250m drums)",
+    "LV Cable 1ph 25mm CNE (250m drums)": "LV 1ph 25mm CNE (250m drums)",
+    "LV Cable 1ph 25mm SNE (100m drums)": "LV 1ph 25mm SNE (100m drums)",
+    "LV Cable 1ph 35mm CNE (250m drums)": "LV 1ph 35mm CNE (250m drums)",
+    "LV Cable 1ph 35mm SNE (100m drums)": "LV 1ph 35mm SNE (100m drums)",
+    "LV Cable 3ph 35mm Cu Split Con (250m drums)": "LV 3ph 35mm Cu Split Con (250m drums)",
+    "LV Cable 3ph 35mm SNE (250m drums)": "LV 3ph 35mm SNE (250m drums)",
+    "LV Cable 3ph 35mm CNE (250m drums)": "LV 3ph 35mm CNE (250m drums)",
+    "LV Cable 3ph 35mm CNE Al (LSOH) (250m drums)": "LV 3ph 35mm CNE Al LSOH (250m drums)",
+    "LV Cable 3c 95mm W/F (250m drums)": "LV 3c 95mm W/F (250m drums)",
+    "LV Cable 3c 185mm W/F (250m drums)": "LV 3c 185mm W/F (250m drums)",
+    "LV Cable 3c 300mm W/F (250m drums)": "LV 3c 300mm W/F (250m drums)",
+    "LV Cable 4c 95mm W/F (250m drums)": "LV 4c 95mm W/F (250m drums)",
+    "LV Cable 4c 185mm W/F (250m drums)": "LV 4c 185mm W/F (250m drums)",
+    "LV Cable 4c 240mm W/F (250m drums)": "LV 4c 240mm W/F (250m drums)",
+    "LV Marker Tape (365m roll)": "LV Marker Tape (365m roll)",
     # 11kV
-    "11kv Cable 95mm 3c Poly (250m drums)": "11kV 3c 95mm Poly",
-    "11kv Cable 185mm 3c Poly (250m drums)": "11kV 3c 185mm Poly",
-    "11kv Cable 300mm 3c Poly (250m drums)": "11kV 3c 300mm Poly",
-    "11kv Cable 95mm 1c Poly (250m drums)": "11kV 1c 95mm Poly",
-    "11kv Cable 185mm 1c Poly (250m drums)": "11kV 1c 185mm Poly",
-    "11kv Cable 300mm 1c Poly (250m drums)": "11kV 1c 300mm Poly",
-    "11kV Marker Tape (40m roll)": "11kV Marker Tape"
+    "11kv Cable 95mm 3c Poly (250m drums)": "11kV 3c 95mm Poly (250m drums)",
+    "11kv Cable 185mm 3c Poly (250m drums)": "11kV 3c 185mm Poly (250m drums)",
+    "11kv Cable 300mm 3c Poly (250m drums)": "11kV 3c 300mm Poly (250m drums)",
+    "11kv Cable 95mm 1c Poly (250m drums)": "11kV 1c 95mm Poly (250m drums)",
+    "11kv Cable 185mm 1c Poly (250m drums)": "11kV 1c 185mm Poly (250m drums)",
+    "11kv Cable 300mm 1c Poly (250m drums)": "11kV 1c 300mm Poly (250m drums)",
+    "11kV Marker Tape (40m roll)": "11kV Marker Tape (40m roll)"
 }
 
 # --- Transformer Mappings ---
@@ -687,6 +718,7 @@ foundation_steelwork_keys = {
 
 categories = [
     ("Poles 🪵", pole_keys, "Quantity"),
+    ("Poles _changed 🪵", pole_change_keys, "Quantity"),
     ("Transformers ⚡🏭", transformer_keys, "Quantity"),
     ("Conductors", conductor_keys, "Length (Km)"),
     ("Conductors_2", conductor_2_keys, "Length (Km)"),
@@ -731,7 +763,7 @@ st.markdown("<h1>📊 Data Management Dashboard</h1>", unsafe_allow_html=True)
 # -------------------------------
 # --- Upload Aggregated Parquet file ---
 # --- Load aggregated Parquet file ---
-aggregated_file = r"CF_aggregated.parquet"
+aggregated_file = r"Master.parquet"
 if aggregated_file is not None:
     df = pd.read_parquet(aggregated_file)
     df.columns = df.columns.str.strip().str.lower()  # normalize columns
@@ -758,6 +790,7 @@ resume_file = r"CF_resume.parquet"
 if resume_file is not None:
     resume_df = pd.read_parquet(resume_file)
     resume_df.columns = resume_df.columns.str.strip().str.lower()  # normalize columns
+
 
 # --- Load Miscellaneous Parquet file ---
 misc_file = "miscelaneous.parquet"
@@ -1224,6 +1257,7 @@ if misc_file is not None:
 
     categories = [
         ("Poles 🪵", pole_keys, "Quantity"),
+        ("Poles _changed 🪵", pole_change_keys, "Quantity"),
         ("Transformers ⚡🏭", transformer_keys, "Quantity"),
         ("Conductors", conductor_keys, "Length (Km)"),
         ("Conductors_2", conductor_2_keys, "Length (Km)"),
@@ -1250,19 +1284,6 @@ if misc_file is not None:
             st.warning("Missing required columns: item / mapped")
             continue
             
-        # Merge misc_df to bring Column_K into filtered_df
-        # Map Column_K values from misc_df into filtered_df
-        if misc_df is not None:
-            # Ensure keys are strings
-            filtered_df['item'] = filtered_df['item'].astype(str)
-            misc_df['column_b'] = misc_df['column_b'].astype(str)
-
-            # Create a mapping dictionary: item -> Column_K
-            item_to_column_k = misc_df.set_index('column_b')['column_k'].to_dict()
-
-            # Add a new column with the mapped values
-            filtered_df['material code'] = filtered_df['item'].map(item_to_column_k)
-
         # Build regex pattern for this category’s keys
         pattern = '|'.join([re.escape(k) for k in keys.keys()])
 
@@ -1371,7 +1392,7 @@ if misc_file is not None:
 
 
             # Your original approach but working:
-            extra_cols = ['poling team','team_name','segmentdesc','segmentcode', 'projectmanager', 'project', 'shire','material code' , 'sourcefile']
+            extra_cols = ['poling team','team_name','segmentdesc','segmentcode', 'projectmanager', 'project', 'shire','material_code' ,'pid_ohl_nr', 'sourcefile' ]
             
             # Rename first
             selected_rows = selected_rows.rename(columns={
@@ -1421,13 +1442,59 @@ if misc_file is not None:
                         ).dt.strftime("%d/%m/%Y")
                         df_bar.loc[df_bar['datetouse'].isna(), 'datetouse_display'] = "Unplanned"
 
-                    cols_to_include = ['mapped', 'datetouse_display'] + extra_cols
+                    cols_to_include = ['mapped', 'datetouse_display','pole','qsub'] + extra_cols
                     cols_to_include = [c for c in cols_to_include if c in df_bar.columns]
                     df_bar = df_bar[cols_to_include]
 
                     aggregated_df = pd.concat([aggregated_df, df_bar], ignore_index=True)
 
                 aggregated_df.to_excel(writer, sheet_name='Aggregated', index=False)
+                # Access the worksheet
+                ws = writer.book['Aggregated']
+                # ---- Header style ----
+                header_font = Font(bold=True, size=16)
+                header_fill = PatternFill(start_color="00CCFF", end_color="00CCFF", fill_type="solid")
+                # ---- Border styles ----
+                thin_side = Side(style="thin")
+                medium_side = Side(style="medium")
+                thick_side = Side(style="thick")
+                for col_idx, cell in enumerate(ws[1], start=1):
+                    cell.font = header_font
+                    cell.fill = header_fill
+
+                    # Optional: auto-adjust column width
+                    column_letter = get_column_letter(col_idx)
+                    ws.column_dimensions[column_letter].width = 20
+
+                # ---- Alternating row colors ----
+                light_grey_fill = PatternFill(start_color="D9D9D9", end_color="D9D9D9", fill_type="solid")
+                white_fill = PatternFill(start_color="FFFFFF", end_color="FFFFFF", fill_type="solid")
+
+                for row_idx in range(2, ws.max_row + 1):  # start after header
+                    fill = light_grey_fill if row_idx % 2 == 0 else white_fill
+                    for col_idx in range(1, ws.max_column + 1):
+                        ws.cell(row=row_idx, column=col_idx).fill = fill
+
+                max_col = ws.max_column
+
+                for col_idx in range(1, max_col + 1):
+                    cell = ws.cell(row=1, column=col_idx)
+
+                    cell.border = Border(
+                        left=thick_side if col_idx == 1 else medium_side,
+                        right=thick_side if col_idx == max_col else medium_side,
+                        top=thick_side,
+                        bottom=thick_side
+                    )
+
+                for row_idx in range(2, ws.max_row + 1):
+                    for col_idx in range(1, max_col + 1):
+                        cell = ws.cell(row=row_idx, column=col_idx)
+
+                        cell.border = Border(
+                            left=thin_side if col_idx == 1 else thin_side,
+                            right=thin_side
+                        )
 
             buffer_agg.seek(0)
             st.download_button(
@@ -1449,7 +1516,7 @@ if misc_file is not None:
                         ).dt.strftime("%d/%m/%Y")
                         df_bar.loc[df_bar['datetouse'].isna(), 'datetouse_display'] = "Unplanned"
 
-                    cols_to_include = ['mapped', 'datetouse_display'] + extra_cols
+                    cols_to_include = ['mapped', 'datetouse_display','qsub'] + extra_cols
                     cols_to_include = [c for c in cols_to_include if c in df_bar.columns]
                     df_bar = df_bar[cols_to_include]
 
@@ -1463,6 +1530,7 @@ if misc_file is not None:
                 file_name=f"{cat_name}_Details_Separated.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
+
 
 # -----------------------------
 # 🛠️ Works Section
