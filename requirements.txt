@@ -9,8 +9,8 @@ streamlit-plotly-events
 pyarrow
 openpyxl
 matplotlib
-requests
 python-docx
+rapidfuzz
 
 
 
