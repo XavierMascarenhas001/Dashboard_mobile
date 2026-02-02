@@ -334,7 +334,7 @@ pole_erected_keys = {
     "Erect Section Structure 'H' HV/EHV Pole, up to and including 12 metre pole.":"H HV pole"
 }
 
-poles_replaced_keys = {
+pole_replaced_keys = {
     "Recover single pole, up to and including 15 metres in height, and reinstate, all ground conditions":"Recover single pole",
     "Recover 'A' / 'H' pole, up to and including 15 metres in height, and reinstate, all ground conditions":"Recover H pole"
 }
@@ -723,8 +723,8 @@ foundation_steelwork_keys = {
 
 categories = [
     ("Poles 🪵", pole_keys, "Quantity"),
-    ("Poles _replaced 🪵", poles_replaced_keys, "Quantity"),
     ("Poles _erected 🪵", pole_erected_keys, "Quantity"),
+    ("Poles _replaced 🪵", poles_replaced_keys, "Quantity"),
     ("Transformers ⚡🏭", transformer_keys, "Quantity"),
     ("Conductors", conductor_keys, "Length (Km)"),
     ("Conductors_2", conductor_2_keys, "Length (Km)"),
@@ -1273,8 +1273,8 @@ if misc_file is not None:
 
     categories = [
         ("Poles 🪵", pole_keys, "Quantity"),
-        ("Poles _replaced 🪵", poles_replaced, "Quantity"),
         ("Poles _erected 🪵", pole_erected_keys, "Quantity"),
+        ("Poles _replaced 🪵", poles_replaced_keys, "Quantity"),
         ("Transformers ⚡🏭", transformer_keys, "Quantity"),
         ("Conductors", conductor_keys, "Length (Km)"),
         ("Conductors_2", conductor_2_keys, "Length (Km)"),
