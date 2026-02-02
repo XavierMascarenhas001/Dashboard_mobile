@@ -334,7 +334,7 @@ pole_erected_keys = {
     "Erect Section Structure 'H' HV/EHV Pole, up to and including 12 metre pole.":"H HV pole"
 }
 
-pole_replaced_keys = {
+poles_replaced_keys = {
     "Recover single pole, up to and including 15 metres in height, and reinstate, all ground conditions":"Recover single pole",
     "Recover 'A' / 'H' pole, up to and including 15 metres in height, and reinstate, all ground conditions":"Recover H pole"
 }
