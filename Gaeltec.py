@@ -241,6 +241,8 @@ file_project_mapping = {
     "connections": ["Ayrshire", "Connections"],
     "storms": ["Ayrshire", "Storms"],
     "11kv refurb": ["Ayrshire", "11kv Refurb"],
+    "11kV Refurb Ayrshire 2026": ["Ayrshire", "11kV Refurb"],
+    "11kV Refurb Ayrshire Pinwherry": ["Ayrshire", "11kV Refurb"],
     "aurs road": ["Ayrshire", "Aurs Road"],
     "spen labour": ["Ayrshire", "SPEN Labour"],
     "lvhi5": ["Ayrshire", "LV"],
