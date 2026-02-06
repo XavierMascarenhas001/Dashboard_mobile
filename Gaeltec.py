@@ -1629,7 +1629,7 @@ if misc_file is not None:
                     if 'datetouse' in df_bar.columns:
                         df_bar['datetouse_display'] = pd.to_datetime(
                             df_bar['datetouse'], errors='coerce'
-                        ).dt.strftime("%d/%m/%Y")
+                        )
                         df_bar.loc[df_bar['datetouse'].isna(), 'datetouse_display'] = "Unplanned"
 
                     cols_to_include = ['mapped', 'datetouse_display','qsub'] + extra_cols
