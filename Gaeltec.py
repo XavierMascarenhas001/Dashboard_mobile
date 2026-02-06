@@ -201,6 +201,35 @@ def normalize_item(s):
     s = re.sub(r"\s+", " ", s)          # collapse multiple spaces
     return s
 
+def apply_common_filters(df):
+    df = df.copy()
+
+    # Ensure datetime
+    df['datetouse_dt'] = pd.to_datetime(df['datetouse'], errors='coerce')
+
+    # Date rule: after 2023
+    df = df[df['datetouse_dt'].dt.year > 2023]
+
+    # Segment
+    if selected_segment != 'All' and 'segmentcode' in df.columns:
+        df = df[
+            df['segmentcode'].astype(str).str.strip()
+            == str(selected_segment).strip()
+        ]
+
+    # Pole
+    if selected_pole != "All" and 'pole' in df.columns:
+        df = df[
+            df['pole'].astype(str).str.strip()
+            == str(selected_pole).strip()
+        ]
+
+    # Ensure numeric total
+    if 'total' in df.columns:
+        df['total'] = pd.to_numeric(df['total'], errors='coerce')
+
+    return df.dropna(subset=['datetouse_dt'])
+
     
 # --- MAPPINGS ---
 
@@ -861,6 +890,22 @@ if aggregated_file is not None:
 
     agg_view = df.copy()
 
+# -------------------------------
+# --- Team Filter (GLOBAL) ---
+# -------------------------------
+selected_teams = ["All"]
+
+if agg_view is not None and 'team_name' in agg_view.columns:
+    team_options = ["All"] + sorted(
+        agg_view['team_name'].dropna().astype(str).unique()
+    )
+
+    selected_teams = st.sidebar.multiselect(
+        "Select Team(s)",
+        options=team_options,
+        default=["All"]
+    )
+
 # --- Load Resume Parquet file (for %Complete pie chart) ---
 resume_file = st.file_uploader(
     "Upload CF_resume.parquet",
@@ -950,6 +995,12 @@ if misc_file is not None:
         elif filter_type == "Unplanned":
             filtered_df = filtered_df[filtered_df['datetouse'].isna()]
             date_range_str = "Unplanned"
+
+
+if "All" not in selected_teams and 'team_name' in filtered_df.columns:
+    filtered_df = filtered_df[
+        filtered_df['team_name'].astype(str).isin(selected_teams)
+    ]
 
     # -------------------------------
     # --- Total & Variation Display ---
@@ -1119,6 +1170,77 @@ if misc_file is not None:
                 
         except Exception as e:
             st.warning(f"Could not generate projects pie chart: {e}")
+
+
+    # -----------------------------
+# 📈 Jobs per Team per Day (Segment + Pole aware)
+# -----------------------------
+st.subheader("📈 Jobs per Team per Day")
+
+if agg_view is not None and 'total' in agg_view.columns:
+    filtered_agg = agg_view.copy()
+
+    # Apply segment filter
+    if selected_segment != 'All' and 'segmentcode' in filtered_agg.columns:
+        filtered_agg = filtered_agg[
+            filtered_agg['segmentcode'].astype(str).str.strip() == str(selected_segment).strip()
+        ]
+
+    # Apply pole filter
+    if selected_pole != "All" and 'pole' in filtered_agg.columns:
+        filtered_agg = filtered_agg[
+            filtered_agg['pole'].astype(str).str.strip() == str(selected_pole).strip()
+        ]
+
+    # Ensure datetime column
+    if 'datetouse_dt' not in filtered_agg.columns:
+        filtered_agg['datetouse_dt'] = pd.to_datetime(filtered_agg['datetouse'], errors='coerce')
+    else:
+        filtered_agg['datetouse_dt'] = pd.to_datetime(filtered_agg['datetouse_dt'], errors='coerce')
+
+    # Ignore dates later than 2023
+    filtered_agg = filtered_agg[
+        filtered_agg['datetouse_dt'].dt.year > 2023
+    ]
+
+    # Ensure 'total' is numeric
+    filtered_agg['total'] = pd.to_numeric(filtered_agg['total'], errors='coerce').fillna(0)
+
+    # Drop invalid rows
+    filtered_agg = filtered_agg.dropna(subset=['datetouse_dt', 'team_name'])
+
+    if not filtered_agg.empty:
+        # Aggregate per day per team
+        time_df = filtered_agg.groupby(['datetouse_dt', 'team_name'], as_index=False)['total'].sum()
+
+        # Plot line chart
+        fig_time = px.line(
+            time_df,
+            x='datetouse_dt',
+            y='total',
+            color='team_name',
+            markers=True,
+            hover_data={'datetouse_dt': True, 'team_name': True, 'total': True}
+        )
+        fig_time.update_layout(
+            xaxis_title="Day",
+            yaxis_title="Total Jobs £",
+            xaxis=dict(
+                tickformat="%d/%m/%Y",
+                tickangle=45,
+                nticks=10,
+                tickmode='auto',
+            ),
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)',
+            legend_title_text="Team",
+            height=500
+        )
+        st.plotly_chart(fig_time, use_container_width=True)
+    else:
+        st.info("No time-based data available for the selected filters.")
+else:
+    st.info("No 'total' column found in aggregated data.")
 
     # Works total
     with col_top_right:
@@ -1933,73 +2055,3 @@ if filtered_df is not None and not filtered_df.empty:
 
 else:
     st.info("Project or Segment Code columns not found in the data.")
-
-# -----------------------------
-# 📈 Jobs per Team per Day (Segment + Pole aware)
-# -----------------------------
-st.subheader("📈 Jobs per Team per Day")
-
-if agg_view is not None and 'total' in agg_view.columns:
-    filtered_agg = agg_view.copy()
-
-    # Apply segment filter
-    if selected_segment != 'All' and 'segmentcode' in filtered_agg.columns:
-        filtered_agg = filtered_agg[
-            filtered_agg['segmentcode'].astype(str).str.strip() == str(selected_segment).strip()
-        ]
-
-    # Apply pole filter
-    if selected_pole != "All" and 'pole' in filtered_agg.columns:
-        filtered_agg = filtered_agg[
-            filtered_agg['pole'].astype(str).str.strip() == str(selected_pole).strip()
-        ]
-
-    # Ensure datetime column
-    if 'datetouse_dt' not in filtered_agg.columns:
-        filtered_agg['datetouse_dt'] = pd.to_datetime(filtered_agg['datetouse'], errors='coerce')
-    else:
-        filtered_agg['datetouse_dt'] = pd.to_datetime(filtered_agg['datetouse_dt'], errors='coerce')
-
-    # Ignore dates later than 2023
-    filtered_agg = filtered_agg[
-        filtered_agg['datetouse_dt'].dt.year > 2023
-    ]
-
-    # Ensure 'total' is numeric
-    filtered_agg['total'] = pd.to_numeric(filtered_agg['total'], errors='coerce').fillna(0)
-
-    # Drop invalid rows
-    filtered_agg = filtered_agg.dropna(subset=['datetouse_dt', 'team_name'])
-
-    if not filtered_agg.empty:
-        # Aggregate per day per team
-        time_df = filtered_agg.groupby(['datetouse_dt', 'team_name'], as_index=False)['total'].sum()
-
-        # Plot line chart
-        fig_time = px.line(
-            time_df,
-            x='datetouse_dt',
-            y='total',
-            color='team_name',
-            markers=True,
-            hover_data={'datetouse_dt': True, 'team_name': True, 'total': True}
-        )
-        fig_time.update_layout(
-            xaxis_title="Day",
-            yaxis_title="Total Jobs £",
-            xaxis=dict(
-                tickformat="%d/%m/%Y",
-                tickangle=45,
-                nticks=10,
-                tickmode='auto',
-            ),
-            paper_bgcolor='rgba(0,0,0,0)',
-            plot_bgcolor='rgba(0,0,0,0)',
-            legend_title_text="Team",
-            height=500
-        )
-        st.plotly_chart(fig_time, use_container_width=True)
-    else:
-        st.info("No time-based data available for the selected filters.")
-else:
-    st.info("No 'total' column found in aggregated data.")
