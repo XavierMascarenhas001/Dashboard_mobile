@@ -897,6 +897,21 @@ st.markdown("<h1>📊 Data Management Dashboard</h1>", unsafe_allow_html=True)
 # -------------------------------
 # --- Upload Aggregated Parquet file ---
 # --- Load aggregated Parquet file ---
+# -------------------------------
+# App Header
+# -------------------------------
+st.header("Upload Data Files")
+
+# -------------------------------
+# Load Aggregated Parquet
+# -------------------------------
+master_file = st.file_uploader(
+    "Upload Master.parquet",
+    type=["parquet"],
+    key="master"
+)
+
+base_df = None
 st.header("Upload Data Files")
 
 aggregated_file = st.file_uploader(
