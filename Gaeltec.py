@@ -910,6 +910,23 @@ master_file = st.file_uploader(
     type=["parquet"],
     key="master"
 )
+aggregated_file = st.file_uploader(
+    "Upload Master.parquet",
+    type=["parquet"],
+    key="master_file"
+)
+
+resume_file = st.file_uploader(
+    "Upload CF_resume.parquet",
+    type=["parquet"],
+    key="resume_file"
+)
+
+misc_file = st.file_uploader(
+    "Upload miscellaneous.parquet",
+    type=["parquet"],
+    key="misc_file"
+)
 
 base_df = None
 st.header("Upload Data Files")
