@@ -1378,12 +1378,19 @@ if not filtered_df.empty:
         .sort_values('datetouse_dt')
     )
 
-    fig = px.line(
+    # Scatter plot instead of line plot
+    fig = px.scatter(
         revenue_df,
         x='datetouse_dt',
         y='total',
-        markers=True,
+        size_max=15,  # max marker size
         title="Revenue Over Time"
+    )
+    
+    # Update marker size and layout
+    fig.update_traces(
+        marker=dict(size=12, color='blue'),  # bigger points
+        showlegend=False
     )
     fig.update_layout(
         height=500,
@@ -1391,13 +1398,10 @@ if not filtered_df.empty:
         yaxis_title="Revenue (£)",
         hovermode="x unified"
     )
+
     st.plotly_chart(fig, use_container_width=True)
 else:
     st.info("No data for selected filters.")
-
-
-
-
 
 
 if filtered_df is not None and not filtered_df.empty:
