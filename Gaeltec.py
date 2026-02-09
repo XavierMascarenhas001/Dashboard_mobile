@@ -352,18 +352,24 @@ def generate_excel_styled_multilevel(filtered_df, poles_df=None):
     IMG_WIDTH_SMALL = 120
     IMG_WIDTH_LARGE = IMG_WIDTH_SMALL * 3
 
-    # Sheet 1 images
-    img1 = XLImage("Images/GaeltecImage.png")
-    img2 = XLImage("Images/SPEN.png")
-    img1.width = IMG_WIDTH_SMALL; img1.height = IMG_HEIGHT; img1.anchor = "B1"
-    img2.width = IMG_WIDTH_LARGE; img2.height = IMG_HEIGHT; img2.anchor = "A1"
-
     # Position images (row 1)
     img1.anchor = "B1"
     img2.anchor = "A1"
 
     ws.add_image(img1)
     ws.add_image(img2)
+
+    # Same for Summary
+    img1_s = XLImage("Images/GaeltecImage.png")
+    img2_s = XLImage("Images/SPEN.png")
+
+    img1_s.width = IMG_WIDTH_SMALL
+    img1_s.height = IMG_HEIGHT
+    img1_s.anchor = "A1"
+
+    img2_s.width = IMG_WIDTH_LARGE
+    img2_s.height = IMG_HEIGHT
+    img2_s.anchor = "B1"
 
     # Sheet 2 images
     img1_s = XLImage("Images/GaeltecImage.png")
@@ -1292,6 +1298,197 @@ if not filtered_df.empty:
     st.plotly_chart(fig, use_container_width=True)
 else:
     st.info("No data for selected filters.")
+
+if filtered_df is not None and not filtered_df.empty:
+    buffer_agg = BytesIO()
+
+    with pd.ExcelWriter(buffer_agg, engine="openpyxl") as writer:
+
+        # ---- Prepare export_df ----
+        export_df = filtered_df.copy()
+        export_df = export_df.rename(columns=column_rename_map)
+
+        if "done" in export_df.columns:
+            export_df["done"] = pd.to_datetime(export_df["done"], errors="coerce")
+            export_df["done_display"] = export_df["done"].dt.strftime("%d/%m/%Y")
+            export_df.loc[export_df["done"].isna(), "done"] = "Unplanned"
+
+        cols_to_include = [
+            "item","comment", "Quantity_original", "Quantity_used", "material_code",
+            "type", "pole", "Date","done_display", "District", "project",
+            "Project Manager", "Circuit", "Segment",
+            "team lider", "PID", "sourcefile"
+        ]
+        cols_to_include = [c for c in cols_to_include if c in export_df.columns]
+        export_df = export_df[cols_to_include]
+
+        # ---- Output sheet (start below images) ----
+        export_df.to_excel(writer, sheet_name="Output", index=False, startrow=1)
+        ws = writer.book["Output"]
+
+        # ---- Summary sheet ----
+        if "Quantity_used" in export_df.columns:
+            # Ensure numeric type
+            # Apply normalization
+            export_df["Quantity_used"] = pd.to_numeric(export_df["Quantity_used"], errors="coerce").fillna(0)
+            special_item = (
+                "Erect 11kV Remote Controlled Switch Disconnector (Soule Auguste) or Auto Reclosure unit c/w VT, Aerial, RTU & umbilical cable."
+            )
+            export_df["item_norm"] = export_df["item"].apply(normalize_item)
+            summary_items_norm = [normalize_item(i) for i in summary_items]
+            special_item_norm = normalize_item(special_item)
+                # Add comments column for the special item
+            # Aggregate sum by item
+            summary_df = (
+                export_df[export_df["item_norm"].isin(summary_items_norm)]
+                .groupby("item_norm", as_index=False)["Quantity_used"]
+                .sum()
+            )
+
+            if not summary_df.empty:
+                general_summary = (summary_df.merge(export_df[["item_norm", "item"]],on="item_norm",how="left").drop_duplicates("item_norm")
+                                   .rename(columns={"item": "Description","Quantity_used": "Total Quantity"})[["Description", "Total Quantity"]])
+
+                # Ensure Comment column exists
+                general_summary["Comment"] = ""
+
+            # Extract all rows for the special item
+            special_df = export_df[export_df["item_norm"].str.contains(special_item_norm, na=False)].copy()
+
+            if not special_df.empty:
+                # Group by unique comment and sum quantities
+                special_summary = (
+                    special_df.groupby(["item", "comment"], as_index=False)["Quantity_used"]
+                    .sum()
+                    .rename(columns={"item": "Description", "Quantity_used": "Total Quantity", "comment": "Comment"})
+                    )
+
+                # --- Normalise comment safely ---
+                special_df["comment_clean"] = (
+                special_df["comment"]
+                .fillna("")
+                .str.lower()
+                .str.strip()
+                )
+                # --- Classify manufacturer ---
+                def classify_switch(comment):
+                    if not isinstance(comment, str):
+                        return "Unknown"
+                    comment = comment.lower()
+                    if re.search(r"\bsoule\b", comment):
+                        return "Soule"
+                    elif re.search(r"\bnoja\b", comment):
+                        return "Noja"
+                    else:
+                        return "Unknown"
+
+                special_df["Manufacturer"] = special_df["comment_clean"].apply(classify_switch)
+
+                # --- Aggregate ---
+                special_summary = (special_df.groupby(["item", "Manufacturer"], as_index=False)["Quantity_used"]
+                                   .sum().rename(columns={"item": "Description","Quantity_used": "Total Quantity","Manufacturer": "Comment",}))
+
+            else:
+                special_summary = pd.DataFrame(columns=["Description", "Total Quantity", "Comment"])
+
+            # Append special item summary (multiple rows per comment)
+            final_summary = pd.concat([general_summary, special_summary], ignore_index=True, sort=False)
+
+            # Write summary sheet
+            final_summary.to_excel(writer, sheet_name="Summary", index=False, startrow=1)
+            ws_summary = writer.book["Summary"]
+
+        # ---- Formatting styles ----
+        header_font = Font(bold=True, size=16)
+        header_fill = PatternFill(start_color="00CCFF", end_color="00CCFF", fill_type="solid")
+        thin_side = Side(style="thin")
+        medium_side = Side(style="medium")
+        thick_side = Side(style="thick")
+        light_grey_fill = PatternFill(start_color="D9D9D9", end_color="D9D9D9", fill_type="solid")
+        white_fill = PatternFill(start_color="FFFFFF", end_color="FFFFFF", fill_type="solid")
+
+        # AFTER ✅
+        for sheet in [ws, ws_summary]:
+            sheet.row_dimensions[1].height = 90   # logo row
+
+        # ---- Load & resize images ----
+        IMG_HEIGHT = 120
+        IMG_WIDTH_SMALL = 120
+        IMG_WIDTH_LARGE = IMG_WIDTH_SMALL * 3  # 🔹 3× wider
+
+        img1 = XLImage("Images/GaeltecImage.png")
+        img2 = XLImage("Images/SPEN.png")
+
+        img1.width = IMG_WIDTH_SMALL
+        img1.height = IMG_HEIGHT
+
+        img2.width = IMG_WIDTH_LARGE
+        img2.height = IMG_HEIGHT
+
+        # Position images (row 1)
+        img1.anchor = "B1"
+        img2.anchor = "A1"
+
+        ws.add_image(img1)
+        ws.add_image(img2)
+
+        # Same for Summary
+        img1_s = XLImage("Images/GaeltecImage.png")
+        img2_s = XLImage("Images/SPEN.png")
+
+        img1_s.width = IMG_WIDTH_SMALL
+        img1_s.height = IMG_HEIGHT
+        img1_s.anchor = "A1"
+
+        img2_s.width = IMG_WIDTH_LARGE
+        img2_s.height = IMG_HEIGHT
+        img2_s.anchor = "B1"
+
+        ws_summary.add_image(img1_s)
+        ws_summary.add_image(img2_s)
+
+
+        # ---- Formatting (unchanged style) ----
+        for sheet in [ws, ws_summary]:
+            max_col = sheet.max_column
+            max_row = sheet.max_row
+
+            # HEADER → ROW 2 ✅
+            for col_idx, cell in enumerate(sheet[2], start=1):
+                cell.font = header_font
+                cell.fill = header_fill
+                sheet.column_dimensions[get_column_letter(col_idx)].width = 60 if col_idx == 1 else 20
+                cell.border = Border(
+                    left=thick_side if col_idx == 1 else medium_side,
+                    right=thick_side if col_idx == max_col else medium_side,
+                    top=thick_side,
+                    bottom=thick_side
+                )
+
+            # DATA ROWS → START ROW 3 ✅
+            for row_idx in range(3, max_row + 1):
+                fill = light_grey_fill if row_idx % 2 == 1 else white_fill
+                for col_idx in range(1, max_col + 1):
+                    cell = sheet.cell(row=row_idx, column=col_idx)
+                    cell.fill = fill
+                    cell.border = Border(
+                        left=thin_side,
+                        right=thin_side,
+                        top=thin_side,
+                        bottom=thin_side
+                    )
+
+    # ---- Download button ----
+    buffer_agg.seek(0)
+    st.download_button(
+        label="📥 Download Excel (Output Details)",
+        data=buffer_agg,
+        file_name="Gaeltec_Output.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+
+else:
+    st.info("Project or Segment Code columns not found in the data.")
 
 # -------------------------------
 # Jobs per Team per Day
