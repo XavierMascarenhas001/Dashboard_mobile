@@ -265,11 +265,9 @@ def multi_select_filter(col, label, df):
 
 
 
-def to_excel(rev_project_df, rev_team_df):
+def to_excel(rev_project_df):
     output = BytesIO()
     with pd.ExcelWriter(output, engine="openpyxl") as writer:
-
-        # Sheet 1: Revenue per Project
         if not rev_project_df.empty:
             rev_project_df.to_excel(
                 writer,
@@ -279,17 +277,6 @@ def to_excel(rev_project_df, rev_team_df):
             ws_proj = writer.sheets["Revenue per Project"]
             ws_proj.column_dimensions["A"].width = 30
             ws_proj.column_dimensions["B"].width = 18
-
-        # Sheet 2: Revenue per Team
-        if not rev_team_df.empty:
-            rev_team_df.to_excel(
-                writer,
-                index=False,
-                sheet_name="Revenue per Team"
-            )
-            ws_team = writer.sheets["Revenue per Team"]
-            ws_team.column_dimensions["A"].width = 25
-            ws_team.column_dimensions["B"].width = 18
 
     output.seek(0)
     return output
@@ -1168,18 +1155,6 @@ if {'datetouse_dt', 'team_name', 'total'}.issubset(filtered_df.columns):
         )
     else:
         revenue_per_project = pd.DataFrame()
-
-    if not revenue_per_project.empty:
-        excel_file = to_excel(revenue_per_project)
-
-        st.download_button(
-            label="📥 Download Revenue per Project (Excel)",
-            data=excel_file,
-            file_name=f"revenue_per_project_{date_range_str}.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
-    else:
-        st.info("No project revenue data available for export.")
     
 
 
