@@ -1285,77 +1285,78 @@ if {'datetouse_dt', 'team_name', 'total'}.issubset(filtered_df.columns):
     # -----------------------------
     #  Map items to Work Instru
     # -----------------------------
-    filtered_df['item'] = filtered_df['item'].astype(str)
-    misc_df['column_1'] = misc_df['column_1'].astype(str)
+    if misc_df is not None:
+        filtered_df['item'] = filtered_df['item'].astype(str)
+        misc_df['column_1'] = misc_df['column_1'].astype(str)
 
-    # Map items to work instructions
-    item_to_column_i = misc_df.set_index('column_1')['column_2'].to_dict()
-    poles_df = filtered_df[filtered_df['pole'].notna() & (filtered_df['pole'].astype(str).str.lower() != "nan")].copy()
-    poles_df['Work instructions'] = poles_df['item'].map(item_to_column_i)
+        # Map items to work instructions
+        item_to_column_i = misc_df.set_index('column_1')['column_2'].to_dict()
+        poles_df = filtered_df[filtered_df['pole'].notna() & (filtered_df['pole'].astype(str).str.lower() != "nan")].copy()
+        poles_df['Work instructions'] = poles_df['item'].map(item_to_column_i)
 
-    # Keep only rows with valid instructions, comments, and team_name
-    poles_df_clean = poles_df.dropna(subset=['Work instructions', 'comment', 'team_name'])[
-        ['pole', 'segmentcode', 'Work instructions', 'comment', 'team_name']
-    ]
+        # Keep only rows with valid instructions, comments, and team_name
+        poles_df_clean = poles_df.dropna(subset=['Work instructions', 'comment', 'team_name'])[
+            ['pole', 'segmentcode', 'Work instructions', 'comment', 'team_name']
+        ]
 
-    # Make sure poles_df_view exists
-    poles_df_view = pd.DataFrame()  # default empty
+        # Make sure poles_df_view exists
+        poles_df_view = pd.DataFrame()  # default empty
 
-    # -----------------------------
-    # 🔘 Segment selector
-    # -----------------------------
-    segment_options = ['All'] + sorted(poles_df_clean['segmentcode'].dropna().astype(str).unique())
-    selected_segment = st.selectbox("Select a segment code:", segment_options)
+        # -----------------------------
+        # 🔘 Segment selector
+        # -----------------------------
+        segment_options = ['All'] + sorted(poles_df_clean['segmentcode'].dropna().astype(str).unique())
+        selected_segment = st.selectbox("Select a segment code:", segment_options)
 
-    if selected_segment != 'All':
-        poles_df_view = poles_df_clean[poles_df_clean['segmentcode'].astype(str) == selected_segment]
-    else:
-        poles_df_view = poles_df_clean.copy()
-
-    # -----------------------------
-    # 📊 Pie chart (Works breakdown)
-    # -----------------------------
-    if not poles_df_view.empty:
-        # Count work instructions and remove NaN / empty strings
-        work_data = (
-            poles_df_view['Work instructions']
-            .astype(str)
-            .str.lower()
-            .replace('nan', pd.NA)
-            .dropna()  # remove NaN
-            .value_counts()
-            .reset_index()
-        )
-        work_data.columns = ['Work instructions', 'total']
-
-        if not work_data.empty:
-            fig_work = px.pie(
-                work_data,
-                names='Work instructions',
-                values='total',
-                hole=0.4
-            )
-            fig_work.update_traces(textinfo='percent+label', textfont_size=16)
-            fig_work.update_layout(
-                paper_bgcolor='rgba(0,0,0,0)',
-                plot_bgcolor='rgba(0,0,0,0)',
-                showlegend=False
-            )
-            st.plotly_chart(fig_work, use_container_width=True)
+        if selected_segment != 'All':
+            poles_df_view = poles_df_clean[poles_df_clean['segmentcode'].astype(str) == selected_segment]
         else:
-            st.info("No valid work instructions available for the selected filters.")
+            poles_df_view = poles_df_clean.copy()
 
-    # -----------------------------
-    # 📄 Word export
-    # -----------------------------
-    if not poles_df_view.empty:
-        word_file = poles_to_word(poles_df_view)
-        st.download_button(
-            label="⬇️ Download Work Instructions (.docx)",
-            data=word_file,
-            file_name="Pole_Work_Instructions.docx",
-            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-        )
+        # -----------------------------
+        # 📊 Pie chart (Works breakdown)
+        # -----------------------------
+        if not poles_df_view.empty:
+            # Count work instructions and remove NaN / empty strings
+            work_data = (
+                poles_df_view['Work instructions']
+                .astype(str)
+                .str.lower()
+                .replace('nan', pd.NA)
+                .dropna()  # remove NaN
+                .value_counts()
+                .reset_index()
+            )
+            work_data.columns = ['Work instructions', 'total']
+
+            if not work_data.empty:
+                fig_work = px.pie(
+                    work_data,
+                    names='Work instructions',
+                    values='total',
+                    hole=0.4
+                )
+                fig_work.update_traces(textinfo='percent+label', textfont_size=16)
+                fig_work.update_layout(
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    showlegend=False
+                )
+                st.plotly_chart(fig_work, use_container_width=True)
+            else:
+                st.info("No valid work instructions available for the selected filters.")
+
+        # -----------------------------
+        # 📄 Word export
+        # -----------------------------
+        if not poles_df_view.empty:
+            word_file = poles_to_word(poles_df_view)
+            st.download_button(
+                label="⬇️ Download Work Instructions (.docx)",
+                data=word_file,
+                file_name="Pole_Work_Instructions.docx",
+                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            )
         
     # -------------------------------
     # --- Map Section ---
