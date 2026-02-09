@@ -1182,7 +1182,6 @@ if {'datetouse_dt', 'team_name', 'total'}.issubset(filtered_df.columns):
 
     if not revenue_per_project.empty or not revenue_per_team.empty:
        excel_file = to_excel(revenue_per_project, revenue_per_team)
-
         st.download_button(
             label="📥 Download Revenue Summary (Excel)",
             data=excel_file,
