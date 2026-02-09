@@ -1412,13 +1412,12 @@ if {'datetouse_dt', 'team_name', 'total'}.issubset(filtered_df.columns):
 
 # ---- Streamlit download button ----
     if 'filtered_df' in locals() and not filtered_df.empty:
-       excel_file = generate_excel_styled_multilevel(
+        excel_file = generate_excel_styled_multilevel(
             filtered_df,
-            poles_df if 'poles_df' in locals() else None
-        )
+            poles_df if 'poles_df' in locals() else None)
         st.download_button(
             label="📥 High level planning & Poles Excel",
-           data=excel_file,
+            data=excel_file,
             file_name=f"High level planning_{date_range_str}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
