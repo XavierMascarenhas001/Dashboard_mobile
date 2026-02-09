@@ -270,19 +270,100 @@ def to_excel(project_df, team_df):
     output = BytesIO()
     with pd.ExcelWriter(output, engine="openpyxl") as writer:
 
-        # Sheet 1: Revenue per Project
+        # ---- Sheet 1: Revenue per Project ----
         if not project_df.empty:
             project_df.to_excel(writer, index=False, sheet_name="Revenue per Project")
             ws_proj = writer.sheets["Revenue per Project"]
+
+            # ---- Column widths ----
             ws_proj.column_dimensions["A"].width = 30
             ws_proj.column_dimensions["B"].width = 18
 
-        # Sheet 2: Revenue per Team
+            # ---- Styling ----
+            header_font = Font(bold=True, size=14)
+            header_fill = PatternFill(start_color="00CCFF", end_color="00CCFF", fill_type="solid")
+            thin_side = Side(style="thin")
+            medium_side = Side(style="medium")
+            thick_side = Side(style="thick")
+            light_grey_fill = PatternFill(start_color="D9D9D9", end_color="D9D9D9", fill_type="solid")
+            white_fill = PatternFill(start_color="FFFFFF", end_color="FFFFFF", fill_type="solid")
+
+            max_col = ws_proj.max_column
+            max_row = ws_proj.max_row
+
+            # HEADER → row 1
+            for col_idx, cell in enumerate(ws_proj[1], start=1):
+                cell.font = header_font
+                cell.fill = header_fill
+                cell.border = Border(
+                    left=thick_side if col_idx == 1 else medium_side,
+                    right=thick_side if col_idx == max_col else medium_side,
+                    top=thick_side,
+                    bottom=thick_side
+                )
+
+            # DATA ROWS → start row 2
+            for row_idx in range(2, max_row + 1):
+                fill = light_grey_fill if row_idx % 2 == 0 else white_fill
+                for col_idx in range(1, max_col + 1):
+                    cell = ws_proj.cell(row=row_idx, column=col_idx)
+                    cell.fill = fill
+                    cell.border = Border(
+                        left=thin_side,
+                        right=thin_side,
+                        top=thin_side,
+                        bottom=thin_side
+                    )
+
+        # ---- Sheet 2: Revenue per Team ----
         if not team_df.empty:
             team_df.to_excel(writer, index=False, sheet_name="Revenue per Team")
             ws_team = writer.sheets["Revenue per Team"]
+
             ws_team.column_dimensions["A"].width = 25
             ws_team.column_dimensions["B"].width = 18
+
+            # Apply same styling as Project sheet
+            max_col = ws_team.max_column
+            max_row = ws_team.max_row
+
+            # HEADER → row 1
+            for col_idx, cell in enumerate(ws_team[1], start=1):
+                cell.font = header_font
+                cell.fill = header_fill
+                cell.border = Border(
+                    left=thick_side if col_idx == 1 else medium_side,
+                    right=thick_side if col_idx == max_col else medium_side,
+                    top=thick_side,
+                    bottom=thick_side
+                )
+
+            # DATA ROWS → start row 2
+            for row_idx in range(2, max_row + 1):
+                fill = light_grey_fill if row_idx % 2 == 0 else white_fill
+                for col_idx in range(1, max_col + 1):
+                    cell = ws_team.cell(row=row_idx, column=col_idx)
+                    cell.fill = fill
+                    cell.border = Border(
+                        left=thin_side,
+                        right=thin_side,
+                        top=thin_side,
+                        bottom=thin_side
+                    )
+
+        # ---- Add images to both sheets ----
+        IMG_HEIGHT = 120
+        IMG_WIDTH_SMALL = 120
+        IMG_WIDTH_LARGE = IMG_WIDTH_SMALL * 3
+
+        for ws_sheet in [ws_proj, ws_team]:
+            ws_sheet.row_dimensions[1].height = IMG_HEIGHT * 0.75  # give room for images
+            img1 = XLImage("Images/GaeltecImage.png")
+            img2 = XLImage("Images/SPEN.png")
+            img1.width = IMG_WIDTH_SMALL; img1.height = IMG_HEIGHT; img1.anchor = "B1"
+            img2.width = IMG_WIDTH_LARGE; img2.height = IMG_HEIGHT; img2.anchor = "D1"
+            ws_sheet.add_image(img1)
+            ws_sheet.add_image(img2)
 
     output.seek(0)
     return output
