@@ -926,16 +926,10 @@ misc_file = st.file_uploader(
 base_df = None
 st.header("Upload Data Files")
 
-aggregated_file = st.file_uploader(
-    "Upload Master.parquet",
-    type=["parquet"],
-    key="master"
-)
-
 agg_view = None
 
-if aggregated_file is not None:
-    df = pd.read_parquet(aggregated_file)
+if master_file is not None:
+    df = pd.read_parquet(master_file)
     df.columns = df.columns.str.strip().str.lower()  # normalize columns
 
     if 'datetouse' in df.columns:
