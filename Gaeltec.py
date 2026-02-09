@@ -285,6 +285,113 @@ def to_excel(project_df, team_df):
 
     output.seek(0)
     return output
+
+def generate_excel_styled(filtered_df, poles_df=None):
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Daily Revenue"
+
+    # ---- Sheet 1: Daily Revenue ----
+    if {'shire', 'project', 'segmentcode', 'projectmanager', 'datetouse_dt', 'total'}.issubset(filtered_df.columns):
+        daily_df = (
+            filtered_df
+            .groupby(['datetouse_dt','shire','project','segmentcode','projectmanager'], as_index=False)
+            .agg({'total':'sum'})
+        )
+        daily_df.rename(columns={
+            'datetouse_dt':'Date',
+            'total':'Revenue (£)',
+            'segmentcode':'Segment',
+            'projectmanager':'Project Manager'
+        }, inplace=True)
+
+        # Write data to sheet
+        for r_idx, row in enumerate([daily_df.columns.tolist()] + daily_df.values.tolist(), start=1):
+            for c_idx, value in enumerate(row, start=1):
+                ws.cell(row=r_idx, column=c_idx, value=value)
+
+    # ---- Sheet 2: Poles Summary ----
+    ws_summary = wb.create_sheet(title="Poles Summary")
+    if poles_df is not None and not poles_df.empty:
+        poles_summary = (
+            poles_df[['project', 'segmentcode', 'pole']]
+            .drop_duplicates()
+            .groupby(['project','segmentcode'], as_index=False)
+            .agg({'pole': lambda x: ', '.join(sorted(x.astype(str)))})
+        )
+        poles_summary.rename(columns={'project':'Project','segmentcode':'Segment','pole':'Poles'}, inplace=True)
+
+        # Write data to sheet
+        for r_idx, row in enumerate([poles_summary.columns.tolist()] + poles_summary.values.tolist(), start=1):
+            for c_idx, value in enumerate(row, start=1):
+                ws_summary.cell(row=r_idx, column=c_idx, value=value)
+
+    # ---- Formatting styles ----
+    header_font = Font(bold=True, size=16)
+    header_fill = PatternFill(start_color="00CCFF", end_color="00CCFF", fill_type="solid")
+    thin_side = Side(style="thin")
+    medium_side = Side(style="medium")
+    thick_side = Side(style="thick")
+    light_grey_fill = PatternFill(start_color="D9D9D9", end_color="D9D9D9", fill_type="solid")
+    white_fill = PatternFill(start_color="FFFFFF", end_color="FFFFFF", fill_type="solid")
+
+    # Add images
+    IMG_HEIGHT = 120
+    IMG_WIDTH_SMALL = 120
+    IMG_WIDTH_LARGE = IMG_WIDTH_SMALL * 3
+
+    # Sheet 1 images
+    img1 = XLImage("Images/GaeltecImage.png")
+    img2 = XLImage("Images/SPEN.png")
+    img1.width = IMG_WIDTH_SMALL; img1.height = IMG_HEIGHT; img1.anchor = "B1"
+    img2.width = IMG_WIDTH_LARGE; img2.height = IMG_HEIGHT; img2.anchor = "A1"
+    ws.add_image(img1)
+    ws.add_image(img2)
+
+    # Sheet 2 images
+    img1_s = XLImage("Images/GaeltecImage.png")
+    img2_s = XLImage("Images/SPEN.png")
+    img1_s.width = IMG_WIDTH_SMALL; img1_s.height = IMG_HEIGHT; img1_s.anchor = "A1"
+    img2_s.width = IMG_WIDTH_LARGE; img2_s.height = IMG_HEIGHT; img2_s.anchor = "B1"
+    ws_summary.add_image(img1_s)
+    ws_summary.add_image(img2_s)
+
+    # ---- Apply header and row formatting ----
+    for sheet in [ws, ws_summary]:
+        max_col = sheet.max_column
+        max_row = sheet.max_row
+
+        # HEADER → ROW 2 (row 1 is for images)
+        for col_idx, cell in enumerate(sheet[2], start=1):
+            cell.font = header_font
+            cell.fill = header_fill
+            sheet.column_dimensions[get_column_letter(col_idx)].width = 60 if col_idx == 1 else 20
+            cell.border = Border(
+                left=thick_side if col_idx == 1 else medium_side,
+                right=thick_side if col_idx == max_col else medium_side,
+                top=thick_side,
+                bottom=thick_side
+            )
+
+        # DATA ROWS → START ROW 3
+        for row_idx in range(3, max_row + 1):
+            fill = light_grey_fill if row_idx % 2 == 1 else white_fill
+            for col_idx in range(1, max_col + 1):
+                cell = sheet.cell(row=row_idx, column=col_idx)
+                cell.fill = fill
+                cell.border = Border(
+                    left=thin_side,
+                    right=thin_side,
+                    top=thin_side,
+                    bottom=thin_side
+                )
+
+    # Save to BytesIO
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+    return output
+
     
 # --- MAPPINGS ---
 
@@ -1285,6 +1392,18 @@ if {'datetouse_dt', 'team_name', 'total'}.issubset(filtered_df.columns):
                                 st.write("No segment codes for this project.")
             else:
                 st.info("Project or Segment Code columns not found in the data.")
+
+    # -----------------------------
+    # Streamlit download button
+    # -----------------------------
+    if 'filtered_df' in locals() and not filtered_df.empty:
+        excel_file = generate_excel_styled(filtered_df, poles_df if 'poles_df' in locals() else None)
+        st.download_button(
+            label="📥 Download Styled Revenue & Poles Excel",
+            data=excel_file,
+            file_name=f"Revenue_Poles_Styled_{date_range_str}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
         
     # -------------------------------
     # --- Map Section ---
