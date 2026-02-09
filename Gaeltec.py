@@ -1281,6 +1281,21 @@ if {'datetouse_dt', 'team_name', 'total'}.issubset(filtered_df.columns):
     # -----------------------------
     # 📊 Pie chart (Works breakdown)
     # -----------------------------
+    # Data preparation
+    # -----------------------------
+    filtered_df['item'] = filtered_df['item'].astype(str)
+    misc_df['column_1'] = misc_df['column_1'].astype(str)
+
+    # Map items to work instructions
+    item_to_column_i = misc_df.set_index('column_1')['column_2'].to_dict()
+    poles_df = filtered_df[filtered_df['pole'].notna() & (filtered_df['pole'].astype(str).str.lower() != "nan")].copy()
+    poles_df['Work instructions'] = poles_df['item'].map(item_to_column_i)
+
+    # Keep only rows with valid instructions, comments, and team_name
+    poles_df_clean = poles_df.dropna(subset=['Work instructions', 'comment', 'team_name'])[
+        ['pole', 'segmentcode', 'Work instructions', 'comment', 'team_name']
+    ]
+
 
     # Make sure poles_df_view exists
     poles_df_view = pd.DataFrame()  # default empty
