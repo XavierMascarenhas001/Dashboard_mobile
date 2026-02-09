@@ -263,17 +263,15 @@ def multi_select_filter(col, label, df):
 
     return selected, df[df[col].astype(str).isin(selected)]
 
+
 def to_excel(df):
     output = BytesIO()
-    with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
+    with pd.ExcelWriter(output, engine="openpyxl") as writer:
         df.to_excel(writer, index=False, sheet_name="Revenue per Project")
 
-        workbook = writer.book
         worksheet = writer.sheets["Revenue per Project"]
-
-        money_fmt = workbook.add_format({'num_format': '£#,##0.00'})
-        worksheet.set_column('A:A', 30)
-        worksheet.set_column('B:B', 18, money_fmt)
+        worksheet.column_dimensions["A"].width = 30
+        worksheet.column_dimensions["B"].width = 18
 
     output.seek(0)
     return output
