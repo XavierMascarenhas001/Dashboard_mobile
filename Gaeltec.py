@@ -1149,6 +1149,7 @@ if 'project' in filtered_df.columns and not filtered_df.empty:
     st.plotly_chart(fig_proj, use_container_width=True)
     
 # Project Completion
+col_top_left, col_top_right = st.columns(2)
 with col_top_left:
     st.markdown("<h3 style='text-align:center; color:white;'>Projects Distribution</h3>", unsafe_allow_html=True)
     # --- Top-right Pie Chart: Projects Distribution ---
