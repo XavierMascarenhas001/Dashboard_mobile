@@ -1124,30 +1124,6 @@ if {'datetouse_dt', 'team_name', 'total'}.issubset(filtered_df.columns):
     )
     st.plotly_chart(fig_team, use_container_width=True)
 
-# -------------------------------
-# Projects Distribution
-# -------------------------------
-if 'project' in filtered_df.columns and not filtered_df.empty:
-    proj_counts = filtered_df['project'].value_counts().reset_index()
-    proj_counts.columns = ['Project', 'Count']
-
-    if len(proj_counts) > 8:
-        top = proj_counts.head(7)
-        other = pd.DataFrame({
-            'Project': ['Other'],
-            'Count': [proj_counts['Count'].iloc[7:].sum()]
-        })
-        proj_counts = pd.concat([top, other])
-
-    fig_proj = px.pie(
-        proj_counts,
-        names='Project',
-        values='Count',
-        hole=0.4,
-        title="Projects Distribution"
-    )
-    st.plotly_chart(fig_proj, use_container_width=True)
-
     
     # Display Project and completion
     col_top_left, col_top_right = st.columns([1, 1])
