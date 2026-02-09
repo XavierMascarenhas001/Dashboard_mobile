@@ -1163,6 +1163,23 @@ if {'datetouse_dt', 'team_name', 'total'}.issubset(filtered_df.columns):
     else:
         st.info("No project revenue data available for export.")
     
+
+
+    if not filtered_df.empty and 'team_name' in filtered_df.columns and 'total' in filtered_df.columns:
+        revenue_per_team = (
+            filtered_df
+            .groupby('team_name', as_index=False)['total']
+            .sum()
+            .sort_values('total', ascending=False)
+        )
+
+        revenue_per_team.rename(
+            columns={'team_name': 'Team', 'total': 'Revenue (£)'},
+            inplace=True
+        )
+    else:
+        revenue_per_team = pd.DataFrame()
+        
     # Display Project and completion
     col_top_left, col_top_right = st.columns([1, 1])
     # Project Completion
