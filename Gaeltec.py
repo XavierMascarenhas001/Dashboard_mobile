@@ -994,15 +994,10 @@ selected_shire, filtered_df = multiselect_filter(filtered_df, 'shire', "Select S
 selected_project, filtered_df = multiselect_filter(filtered_df, 'project', "Select Project")
 selected_pm, filtered_df = multiselect_filter(filtered_df, 'projectmanager', "Select Project Manager")
 selected_segment, filtered_df = multiselect_filter(filtered_df, 'segmentcode', "Select Segment Code")
+selected_pole, filtered_df = multiselect_filter(filtered_df, 'pole', "Select Pole")
 selected_type, filtered_df = multiselect_filter(filtered_df, 'type', "Select Type")
 selected_team, filtered_df = multiselect_filter(filtered_df, 'team_name', "Select Team")
 
-# Pole filter
-if 'pole' in filtered_df.columns:
-    pole_options = ["All"] + sorted(filtered_df['pole'].dropna().astype(str).unique())
-    selected_pole = st.sidebar.selectbox("Select Pole", pole_options)
-    if selected_pole != "All":
-        filtered_df = filtered_df[filtered_df['pole'].astype(str) == selected_pole]
 
 # -------------------------------
 # Date Filter
