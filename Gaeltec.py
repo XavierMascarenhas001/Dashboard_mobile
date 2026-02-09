@@ -1283,6 +1283,8 @@ if {'datetouse_dt', 'team_name', 'total'}.issubset(filtered_df.columns):
     # -----------------------------
     # Data preparation
     # -----------------------------
+    #  Map items to Work Instru
+    # -----------------------------
     filtered_df['item'] = filtered_df['item'].astype(str)
     misc_df['column_1'] = misc_df['column_1'].astype(str)
 
@@ -1295,7 +1297,6 @@ if {'datetouse_dt', 'team_name', 'total'}.issubset(filtered_df.columns):
     poles_df_clean = poles_df.dropna(subset=['Work instructions', 'comment', 'team_name'])[
         ['pole', 'segmentcode', 'Work instructions', 'comment', 'team_name']
     ]
-
 
     # Make sure poles_df_view exists
     poles_df_view = pd.DataFrame()  # default empty
@@ -1310,7 +1311,10 @@ if {'datetouse_dt', 'team_name', 'total'}.issubset(filtered_df.columns):
         poles_df_view = poles_df_clean[poles_df_clean['segmentcode'].astype(str) == selected_segment]
     else:
         poles_df_view = poles_df_clean.copy()
-        
+
+    # -----------------------------
+    # 📊 Pie chart (Works breakdown)
+    # -----------------------------
     if not poles_df_view.empty:
         # Count work instructions and remove NaN / empty strings
         work_data = (
@@ -1352,7 +1356,6 @@ if {'datetouse_dt', 'team_name', 'total'}.issubset(filtered_df.columns):
             file_name="Pole_Work_Instructions.docx",
             mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         )
-
         
     # -------------------------------
     # --- Map Section ---
