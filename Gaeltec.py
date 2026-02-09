@@ -1370,30 +1370,22 @@ general_summary = pd.DataFrame(
     columns=["Description", "Total Quantity", "Comment"]
 )
 if not filtered_df.empty:
-    revenue_df = (
-        filtered_df
-        .dropna(subset=['datetouse_dt'])
-        .groupby('datetouse_dt', as_index=False)['total']
-        .sum()
-        .sort_values('datetouse_dt')
-    )
 
-    # Reduce points by taking every 2nd date (or every nth)
-    revenue_df_sampled = revenue_df.iloc[::2, :]
+    revenue_df['datetouse_dt'] = pd.to_datetime(revenue_df['datetouse_dt'])
 
     fig = px.scatter(
-        revenue_df_sampled,
+        revenue_df,
         x='datetouse_dt',
         y='total',
-        title="Revenue Over Time"
     )
 
     fig.update_traces(
-        marker=dict(size=10, color='#FFA500'),
-        line=dict(dash='dash', color='#FFA500'),
-        mode='lines+markers'
+        marker=dict(size=8, color='#FFA500'),  # subtle orange
+        line=dict(width=0),  # no connecting line
+        mode='markers'
     )
 
+    # Add horizontal gridlines for easier reading
     fig.update_layout(
         height=500,
         xaxis_title="Date",
@@ -1405,7 +1397,6 @@ if not filtered_df.empty:
         xaxis=dict(showgrid=True, gridcolor='rgba(255,255,255,0.1)'),
         yaxis=dict(showgrid=True, gridcolor='rgba(255,255,255,0.2)', zeroline=False)
     )
-
     st.plotly_chart(fig, use_container_width=True)
 else:
     st.info("No data for selected filters.")
