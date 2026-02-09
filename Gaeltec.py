@@ -1281,6 +1281,21 @@ if {'datetouse_dt', 'team_name', 'total'}.issubset(filtered_df.columns):
     # -----------------------------
     # 📊 Pie chart (Works breakdown)
     # -----------------------------
+
+    # Make sure poles_df_view exists
+poles_df_view = pd.DataFrame()  # default empty
+
+    # -----------------------------
+    # 🔘 Segment selector
+    # -----------------------------
+    segment_options = ['All'] + sorted(poles_df_clean['segmentcode'].dropna().astype(str).unique())
+    selected_segment = st.selectbox("Select a segment code:", segment_options)
+
+    if selected_segment != 'All':
+        poles_df_view = poles_df_clean[poles_df_clean['segmentcode'].astype(str) == selected_segment]
+    else:
+        poles_df_view = poles_df_clean.copy()
+        
     if not poles_df_view.empty:
         # Count work instructions and remove NaN / empty strings
         work_data = (
